@@ -93,7 +93,6 @@ async def baseline(session: s.Session) -> None:
 
 
 MODULE = ModuleSchema(
-    package="bazaar-contrib-server",
     tables=(
         "account_roles",
         "accounts",

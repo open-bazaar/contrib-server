@@ -26,8 +26,11 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "aiosqlite>=0.20.0",
-    "bazaar-contrib-node-migrations>=0.3.0,<0.4.0",
+    "bazaar-contrib-collaboration>=0.3.0,<0.4.0",
+    "bazaar-contrib-legacy-node-migrations>=0.3.0,<0.4.0",
+    "bazaar-contrib-messages-node>=0.3.0,<0.4.0",
     "bazaar-contrib-sqlite>=0.3.0,<0.4.0",
+    "bazaar-contrib-timer-wheel>=0.3.0,<0.4.0",
     "blockbuster>=1.5.29,<1.6",
     "pyright==1.1.414",
     "pytest>=8.3.0",
