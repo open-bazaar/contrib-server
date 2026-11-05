@@ -1,0 +1,16 @@
+{% extends "server/base.html" %}
+{% block title %}{{ t.text("server.settings") }}{% endblock %}
+{% block body %}
+<section class="content settings">
+  <nav class="snav">
+    {% for item in parts %}
+    <a class="it{% if part and item.key == part.key %} on{% endif %}" href="/ui/settings/{{ item.key }}">{{ t.text(item.title) }}</a>
+    {% endfor %}
+  </nav>
+  {% if part %}
+  <iframe class="pane" src="{{ src }}" data-fit data-address-from="{{ part.src.rstrip('/') }}" data-address-to="/ui/settings/{{ part.key }}" title="{{ t.text(part.title) }}"></iframe>
+  {% else %}
+  <p class="empty">{{ t.text("server.settings.empty") }}</p>
+  {% endif %}
+</section>
+{% endblock %}

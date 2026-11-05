@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ t.text("server.title") }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ stylesheet }}">
+<script src="{{ asset('embed.js', 'server') }}"></script>
+<script src="{{ asset('htmx.min.js', 'server') }}"></script>
+<script src="{{ asset('hx-alpine-compat-4.0.0.js', 'server') }}"></script>
+<script defer src="{{ asset('alpine-focus-3.17.4.min.js', 'server') }}"></script>
+<script defer src="{{ asset('alpine-collapse-3.17.4.min.js', 'server') }}"></script>
+<script defer src="{{ asset('alpine-3.17.4.min.js', 'server') }}"></script>
+{% block head %}{% endblock %}
+</head>
+{# every request says the viewer's zone, and which build drew the page: one
+   left open across an upgrade is asked to refresh rather than patched with
+   pieces of the new build #}
+<body hx-headers:inherited='js:{"X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone, "X-Build": "{{ build }}"}'>
+{% block body %}{% endblock %}
+<dialog class="dialog" data-stale aria-labelledby="stale-title">
+  <h3 id="stale-title">{{ t.text("server.stale.title") }}</h3>
+  <p class="muted">{{ t.text("server.stale.text") }}</p>
+  <button class="btn primary" type="button" data-refresh>{{ t.text("server.stale.refresh") }}</button>
+</dialog>
+</body>
+</html>

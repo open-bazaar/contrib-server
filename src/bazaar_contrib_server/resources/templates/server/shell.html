@@ -1,0 +1,36 @@
+{% import "server/icons.html" as icons %}<!DOCTYPE html>
+<html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ t.text("server.title") }}</title>
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg', 'server') }}">
+<link rel="stylesheet" href="{{ stylesheet }}">
+<link rel="stylesheet" href="{{ asset('shell.css', 'server') }}">
+<script src="{{ asset('embed.js', 'server') }}"></script>
+<script src="{{ asset('htmx.min.js', 'server') }}"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="/overview">{% include "server/mark.svg" %}<span class="word">Bazaar</span></a>
+    {% for link in links %}
+    <a class="nav{% if link.path == active %} on{% endif %}" href="{{ link.path }}"{% if link.path == active %} aria-current="page"{% endif %}><span class="i">{{ link.icon | safe }}</span><span>{{ t.text(link.text) }}</span></a>
+    {% endfor %}
+    <div class="grow"></div>
+    {% set settings = src.startswith("/ui/settings/") %}
+    <a class="nav{% if settings %} on{% endif %}" href="/settings"{% if settings %} aria-current="page"{% endif %}>{{ icons.icon("settings") }}<span>{{ t.text("server.settings") }}</span></a>
+    <div class="me">
+      <span class="av sm {{ account.name | tint }}">{{ account.name[:1] | upper }}</span>
+      <div class="who"><b>{{ account.name }}</b>{% if account.admin %}<span>{{ t.text("server.admin") }}</span>{% endif %}</div>
+      <button class="icon-btn" type="button" hx-post="/login/logout" title="{{ t.text('server.logout') }}" aria-label="{{ t.text('server.logout') }}">{{ icons.icon("log-out") }}</button>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="top"><h1 data-title>{{ t.text("server.title") }}</h1></header>
+    {# the module's interface: where it goes and what it is called show here #}
+    <iframe class="frame" src="{{ src }}" data-address-from="/ui" data-address-to="" title="{{ t.text('server.title') }}"></iframe>
+  </main>
+</div>
+</body>
+</html>

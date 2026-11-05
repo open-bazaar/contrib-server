@@ -1,0 +1,8 @@
+{% extends "server/base.html" %}
+{% block title %}{{ t.text("server.error." ~ code ~ ".title") if t.has("server.error." ~ code ~ ".title") else t.text("server.error.title") }}{% endblock %}
+{% block body %}
+<section class="content closed">
+  <h2>{{ self.title() }}</h2>
+  <p class="muted">{{ t.text("server.error." ~ code ~ ".text") if t.has("server.error." ~ code ~ ".text") else t.text("server.error.text") }}</p>
+</section>
+{% endblock %}
