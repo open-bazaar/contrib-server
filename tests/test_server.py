@@ -114,7 +114,18 @@ async def test_the_shell_serves_its_files_and_embedding_tools_to_anyone():
         for theme in ("night", "day"):
             assert f':root[data-theme="{theme}"]' in style.text
         assert "--saffron:" in style.text
+        assert "--scene-sky:" in style.text
         assert ".btn" in style.text
+        # what a phone needs to keep the server on its home screen
+        manifest = await session.get(f"{url}/static/server/manifest.webmanifest")
+        assert manifest.status_code == 200
+        assert manifest.headers["content-type"].startswith("application/manifest+json")
+        for icon in manifest.json()["icons"]:
+            picture = await session.get(f"{url}/static/server/{icon['src']}")
+            assert picture.status_code == 200
+            assert picture.headers["content-type"] == "image/png"
+        touch = await session.get(f"{url}/static/server/apple-touch-icon.png")
+        assert touch.status_code == 200
 
 
 async def test_a_registered_theme_is_in_the_stylesheet_until_it_is_withdrawn():

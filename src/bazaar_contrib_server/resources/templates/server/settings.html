@@ -1,16 +1,27 @@
 {% extends "server/base.html" %}
+{% import "server/icons.html" as icons %}
+{# a part opened on a narrow screen leads back to the directory #}
+{% block root %}{% if view == "part" %} data-back="/settings"{% endif %}{% endblock %}
 {% block title %}{{ t.text("server.settings") }}{% endblock %}
 {% block body %}
-<section class="content settings">
+<section class="content settings" data-view="{{ view }}">
+  <div class="card who"><span class="av {{ account.name | tint }}">{{ account.name[:1] | upper }}</span><div><b>{{ account.name }}</b>{% if account.admin %}<span>{{ t.text("server.admin") }}</span>{% endif %}</div></div>
+  {% if groups %}
   <nav class="snav">
-    {% for item in parts %}
-    <a class="it{% if part and item.key == part.key %} on{% endif %}" href="/ui/settings/{{ item.key }}">{{ t.text(item.title) }}</a>
+    {% for group, items in groups.items() %}
+    <div class="gp">{{ t.text(group) }}</div>
+    {% for item in items %}
+    <a class="it{% if part and item.key == part.key %} on{% endif %}" href="/ui/settings/{{ item.key }}"><span class="i">{{ item.icon | safe }}</span><span class="tx"><b>{{ t.text(item.title) }}</b>{% if item.description %}<small>{{ t.text(item.description) }}</small>{% endif %}</span>{{ icons.icon("chevron-right") }}</a>
+    {% endfor %}
     {% endfor %}
   </nav>
+  {% endif %}
   {% if part %}
-  <iframe class="pane" src="{{ src }}" data-fit data-address-from="{{ part.src.rstrip('/') }}" data-address-to="/ui/settings/{{ part.key }}" title="{{ t.text(part.title) }}"></iframe>
+  {# the directory keeps its own address; only an opened part carries the part's #}
+  <iframe class="pane" src="{{ src }}" data-fit{% if view == "part" %} data-address-from="{{ part.src.rstrip('/') }}" data-address-to="/ui/settings/{{ part.key }}"{% endif %} title="{{ t.text(part.title) }}"></iframe>
   {% else %}
   <p class="empty">{{ t.text("server.settings.empty") }}</p>
   {% endif %}
+  <button class="btn leave" type="button" hx-post="/login/logout">{{ icons.icon("log-out") }}<span>{{ t.text("server.logout") }}</span></button>
 </section>
 {% endblock %}

@@ -62,3 +62,5 @@ notes = Contrib(accepts=[SERVER], lifespan=lifespan)
 ```
 
 The icon is an SVG drawn as the design's are, with class `i` and a 24×24 view box. The module's interface is served at `/ui/notes` inside the shell at `/notes`, its API at `/api/notes` and its files at `/static/notes`. Its templates live in `resources/templates` of its package and extend `server/base.html`, which brings the theme stylesheet and the embedding script; pages of any other framework include `/static/server/theme.css` and `/static/server/embed.js` themselves. Everything behind the shell needs a login module, which registers itself with `server.login`; until one does, those pages and APIs answer 503.
+
+Below 960 pixels the shell becomes one column with the sidebar as a bar along the bottom. Pages in its frames lay out as the shell does, not by their frame's width: `embed.js` marks their root `data-layout="narrow"` or `"wide"`, and their narrow-screen rules select on that. A page one level below another sets `data-back` on its root element to the address of the level above, through the `root` block of `server/base.html` or on its own `<html>`; there the shell's top bar shows a way back.

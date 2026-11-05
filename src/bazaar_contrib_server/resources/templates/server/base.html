@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}">
+<html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}"{% block root %}{% endblock %}>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{{ t.text("server.title") }}{% endblock %}</title>
+{% include "server/head.html" %}
 <link rel="stylesheet" href="{{ stylesheet }}">
 <script src="{{ asset('embed.js', 'server') }}"></script>
 <script src="{{ asset('htmx.min.js', 'server') }}"></script>

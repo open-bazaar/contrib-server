@@ -3,6 +3,11 @@
 // it is called and how tall it is, and follows what its own frames tell it.
 (() => {
   const root = document.documentElement;
+  // a page that belongs to the whole window, like the login page, leaves any frame it was opened in
+  if (root.hasAttribute("data-top") && window.top !== window) {
+    window.top.location.replace(location.href);
+    return;
+  }
   // the browser's zone, for every page the server draws after this one
   document.cookie = `bcs_tz=${Intl.DateTimeFormat().resolvedOptions().timeZone}; path=/; SameSite=Lax${
     location.protocol === "https:" ? "; Secure" : ""
@@ -13,6 +18,15 @@
   } catch {
     // a page framed by another site has no shell to follow
   }
+
+  // A framed page lays out as the shell around it does, narrow or wide,
+  // whatever the width of its own frame; a page on its own goes by its window.
+  const wide = (shell ? window.top : window).matchMedia("(min-width: 960px)");
+  const layout = () => {
+    root.dataset.layout = wide.matches ? "wide" : "narrow";
+  };
+  layout();
+  wide.addEventListener("change", layout);
 
   // An account that chose no theme follows the system, light or dark.
   const chosen = root.dataset.theme;
@@ -40,6 +54,8 @@
           path: location.pathname + location.search,
           title: document.title,
           height: root.offsetHeight,
+          // where a narrow screen's back button goes from here, if anywhere
+          back: root.dataset.back || "",
         },
       },
       location.origin,
@@ -66,7 +82,7 @@
     if (event.origin !== location.origin || !event.data?.bazaar) return;
     const frame = [...document.querySelectorAll("iframe")].find((f) => f.contentWindow === event.source);
     if (!frame) return;
-    const { path, title, height } = event.data.bazaar;
+    const { path, title, height, back } = event.data.bazaar;
     if (frame.hasAttribute("data-fit")) frame.style.height = `${height}px`;
     const from = frame.dataset.addressFrom;
     if (from === undefined) return;
@@ -76,6 +92,10 @@
     }
     if (title && document.title !== title) document.title = title;
     for (const heading of document.querySelectorAll("[data-title]")) heading.textContent = title;
+    for (const link of document.querySelectorAll("[data-back-link]")) {
+      link.hidden = !back;
+      if (back) link.href = back;
+    }
   });
 
   // A page another build drew is not patched with pieces of this one.
