@@ -95,6 +95,7 @@ class Shell:
         def read() -> tuple[PackageLoader, str, tuple[str, str]]:
             # the first file served would otherwise read the system's types
             mimetypes.init()
+            mimetypes.add_type("application/manifest+json", ".webmanifest")
             package = files(PACKAGE)
             style = (
                 (
@@ -415,12 +416,22 @@ class Shell:
                 else item.permission is None or account.allows(item.permission)
             )
         ]
+        # under each heading, in the order the parts were registered
+        groups: dict[str, list[SettingsItem]] = {}
+        for item in parts:
+            groups.setdefault(item.group, []).append(item)
         key = request.path_params.get("key")
         if key is None:
-            if parts:
-                return RedirectResponse(f"/ui/settings/{parts[0].key}")
+            # the directory: a narrow screen shows it alone, a wide one beside
+            # the first part
+            part = parts[0] if parts else None
             return await self._own.render(
-                request, "server/settings.html", parts=parts, part=None
+                request,
+                "server/settings.html",
+                groups=groups,
+                part=part,
+                view="directory",
+                src=part.src if part else "",
             )
         part = next((item for item in parts if item.key == key), None)
         if part is None:
@@ -430,8 +441,9 @@ class Shell:
         return await self._own.render(
             request,
             "server/settings.html",
-            parts=parts,
+            groups=groups,
             part=part,
+            view="part",
             src=part.src.rstrip("/") + (f"/{rest}" if rest else "") + query,
         )
 

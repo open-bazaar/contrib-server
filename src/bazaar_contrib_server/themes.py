@@ -36,6 +36,12 @@ class ThemeRegistry:
         name = _LEGACY.get(name or "", name or "")
         return name if any(theme.name == name for theme in self.themes) else ""
 
+    def bg(self, name: str) -> str:
+        """The background a theme paints, for the browser's own chrome."""
+        return next(
+            (theme.tokens.bg for theme in self.themes if theme.name == name), ""
+        )
+
     def system(self) -> dict[str, str]:
         """The theme followed for a light and for a dark system: the first
         registered of that scheme, or the first of all."""

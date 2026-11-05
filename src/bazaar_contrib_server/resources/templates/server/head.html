@@ -1,0 +1,9 @@
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg', 'server') }}">
+<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png', 'server') }}">
+<link rel="manifest" href="{{ asset('manifest.webmanifest', 'server') }}">
+{% if theme -%}
+<meta name="theme-color" content="{{ theme_bg(theme) }}">
+{%- else -%}
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="{{ theme_bg(system.light) }}">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="{{ theme_bg(system.dark) }}">
+{%- endif %}

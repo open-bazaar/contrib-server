@@ -48,10 +48,17 @@ class OverviewItem(_Item):
 
 
 class SettingsItem(_Item):
-    """A part of the settings page, loaded in an iframe."""
+    """A part of the settings page, loaded in an iframe; it is listed under
+    its group's heading, with its icon, and on a narrow screen with a line
+    saying what it holds."""
 
     key: str = Field(pattern=NAME)
     title: str
+    # an SVG icon stroked in currentColor, as lucide's are
+    icon: str
+    # the heading's text key; the server's own are server.settings.personal and server.settings.admin
+    group: str
+    description: str = ""
     src: str
     permission: str | None = None
     admin: bool = False
@@ -65,10 +72,10 @@ class PermissionItem(_Item):
 
 
 class Tokens(_Item):
-    """Every value a theme sets, named as in the approved tokens.css."""
+    """Every value a theme sets, named as in the approved tokens.css; the
+    scene_ ones colour the market street on the login page."""
 
     bg: str
-    bg_glow: str
     side_bg: str
     surface: str
     surface_2: str
@@ -96,6 +103,29 @@ class Tokens(_Item):
     plum_soft: str
     shadow: str
     codex: str
+    scene_sky: str
+    scene_star: str
+    scene_moon: str
+    scene_bite: str
+    scene_far: str
+    scene_far_roof: str
+    scene_window: str
+    scene_cord: str
+    scene_cap: str
+    scene_wood: str
+    scene_wood_light: str
+    scene_wood_shade: str
+    scene_inside: str
+    scene_inside_shade: str
+    scene_alt: str
+    scene_glow: str
+    scene_bulb: str
+    scene_ground: str
+    scene_ground_light: str
+    scene_ground_shade: str
+    scene_pot: str
+    scene_steam: str
+    scene_far_fade: str
 
 
 class Theme(_Item):

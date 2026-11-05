@@ -1,17 +1,13 @@
 /* The shell around every module: the sidebar, the top bar and the frame. */
 
 html, body { height: 100%; }
-body { background: var(--bg-glow), var(--bg); overflow: hidden; }
+body { background: var(--bg); overflow: hidden; }
 a { color: inherit; text-decoration: none; }
 /* shell */
-.app { display: grid; grid-template-columns: var(--side) 1fr; height: 100vh; }
+.app { display: grid; grid-template-columns: var(--side) 1fr; height: 100vh; height: 100dvh; }
 .side {
   background: var(--side-bg); border-right: 1px solid var(--line-soft);
   display: flex; flex-direction: column; padding: 18px 14px 14px; gap: 6px; position: relative; overflow: hidden;
-}
-.side::after { /* a string of lanterns hangs over the sign */
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 120px; pointer-events: none;
-  background: radial-gradient(260px 90px at 40% -20px, var(--saffron-soft), transparent 70%);
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 14px; position: relative; z-index: 1; }
 .brand .mark { width: 30px; height: 30px; }
@@ -28,7 +24,7 @@ a { color: inherit; text-decoration: none; }
 .nav .badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--saffron); color: var(--saffron-ink); font-size: 11.5px; font-weight: 700; display: grid; place-items: center; }
 .nav .soon { margin-left: auto; font-size: 11px; color: var(--muted); border: 1px dashed var(--line-strong); padding: 0 6px; border-radius: 999px; }
 .nav.on { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
-.nav.on::before { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--saffron); box-shadow: 0 0 12px var(--saffron); }
+.nav.on::before { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--saffron); }
 .side .grow { flex: 1; }
 .me { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-soft); }
 .me .who { line-height: 1.25; }
@@ -38,8 +34,40 @@ a { color: inherit; text-decoration: none; }
 .me .theme span { width: 26px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); }
 .me .theme span.on { background: var(--raised); color: var(--saffron); box-shadow: var(--shadow); }
 
-.main { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+.main { display: flex; flex-direction: column; min-width: 0; height: 100vh; height: 100dvh; }
 .top { height: 68px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 28px; border-bottom: 1px solid var(--line-soft); }
 .top h1 { margin: 0; font-family: var(--font-display); font-weight: 650; font-size: 24px; letter-spacing: -.01em; font-variation-settings: "opsz" 48; }
 .frame { flex: 1; min-height: 0; width: 100%; border: 0; display: block; }
 .me .icon-btn { margin-left: auto; width: 32px; height: 32px; }
+
+.top .back { display: none; }
+/* what does not fit the bottom bar sits in the sidebar as usual; settings at the foot */
+.overflow { display: contents; }
+.side .grow { order: 1; }
+.side .nav.foot { order: 2; }
+.side .me { order: 3; }
+.side .more, .more-toggle { display: none; }
+
+/* narrow screens: the sidebar becomes a bar along the bottom, the account and
+   logging out move to the settings directory */
+@media (max-width: 959px) {
+  .app { display: flex; flex-direction: column-reverse; }
+  .main { height: auto; flex: 1; min-height: 0; }
+  .top { height: 56px; padding: 0 16px; gap: 6px; }
+  .top h1 { font-size: 20px; }
+  .top .back:not([hidden]) { display: grid; place-items: center; width: 36px; height: 36px; margin-left: -10px; color: var(--text-2); }
+  .side { flex-direction: row; gap: 4px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line-soft); overflow: visible; }
+  .side .brand, .side .grow, .side .me { display: none; }
+  .side .nav { flex: 1; flex-direction: column; gap: 3px; padding: 7px 0 6px; border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .side .nav .i svg { width: 20px; height: 20px; }
+  .side .nav.on { background: var(--saffron-soft); color: var(--saffron); box-shadow: none; }
+  .side .nav.on::before { content: none; }
+  .side .more { display: flex; cursor: pointer; }
+  .more-toggle { display: block; position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+  .more-toggle:focus-visible + .more { outline: 2px solid var(--saffron); outline-offset: -2px; }
+  .overflow { display: none; position: absolute; right: 8px; bottom: calc(100% + 8px); min-width: 180px; flex-direction: column; gap: 2px; padding: 6px;
+              background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow); z-index: 2; }
+  .more-toggle:checked ~ .overflow { display: flex; }
+  .overflow .nav { flex-direction: row; gap: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--text-2); }
+  .overflow .nav .i svg { width: 18px; height: 18px; }
+}

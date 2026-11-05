@@ -117,6 +117,7 @@ class Pages:
                 None if account is None else account.theme
             ),
             "system": self._shell.themes.system(),
+            "theme_bg": self._shell.themes.bg,
             "stylesheet": self._shell.stylesheet,
             "build": self.build,
             "request": request,
