@@ -1,0 +1,9 @@
+{% autoescape false %}{% for theme in themes %}
+:root[data-theme="{{ theme.name }}"] {
+  color-scheme: {{ theme.scheme }};
+{%- for name, value in theme.tokens.model_dump().items() %}
+  --{{ name | replace("_", "-") }}: {{ value }};
+{%- endfor %}
+{{ theme.styles }}
+}
+{% endfor %}{% endautoescape %}
