@@ -1,5 +1,11 @@
-{% import "server/icons.html" as icons %}{% macro nav(link, extra="") -%}
-<a class="nav{{ extra }}{% if link.path == active %} on{% endif %}" href="{{ link.path }}"{% if link.path == active %} aria-current="page"{% endif %}><span class="i">{{ link.icon | safe }}</span><span>{{ t.text(link.text) }}</span></a>
+{% import "server/icons.html" as icons %}{% import "server/avatar.html" as people %}{% macro draw(entry) -%}
+{% set kind, item, head = entry %}
+{% if head %}<div class="nav-group">{{ t.text(head) }}</div>{% endif %}
+{% if kind == "link" %}
+<a class="nav{% if item.path == active %} on{% endif %}" href="{{ item.path }}"{% if item.path == active %} aria-current="page"{% endif %}><span class="i">{{ item.icon | safe }}</span><span>{{ t.text(item.text) }}</span>{% if item.badge %}<span class="tally" data-topic="{{ item.badge }}" data-tally hidden></span>{% endif %}</a>
+{% else %}
+<iframe class="panel" src="{{ item.src }}" data-fit title="{{ item.key }}"></iframe>
+{% endif %}
 {%- endmacro %}<!DOCTYPE html>
 <html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}">
 <head>
@@ -12,14 +18,13 @@
 <script src="{{ asset('embed.js', 'server') }}"></script>
 <script src="{{ asset('htmx.min.js', 'server') }}"></script>
 </head>
-<body>
+<body data-build="{{ server_build }}">
 <div class="app">
   <aside class="side">
-    <a class="brand" href="/overview">{% include "server/mark.svg" %}<span class="word">Bazaar</span></a>
-    {# a bottom bar holds five; with more, the fifth opens the rest #}
-    {% set crowded = links | length + 1 > 5 %}
-    {% for link in (links[:4] if crowded else links) %}
-    {{ nav(link) }}
+    <a class="brand" href="/">{% include "server/mark.svg" %}<span class="word">Bazaar</span></a>
+    {% for panel in top %}<iframe class="panel" src="{{ panel.src }}" data-fit title="{{ panel.key }}"></iframe>{% endfor %}
+    {% for entry in entries[:split] %}
+    {{ draw(entry) }}
     {% endfor %}
     {% set settings = src.startswith("/ui/settings/") %}
     {% set settings_link %}<a class="nav foot{% if settings %} on{% endif %}" href="/settings"{% if settings %} aria-current="page"{% endif %}>{{ icons.icon("settings") }}<span>{{ t.text("server.settings") }}</span></a>{% endset %}
@@ -27,11 +32,11 @@
     {# a checkbox, so the sheet opens without script; it stays focusable for the keyboard #}
     <input class="more-toggle" type="checkbox" id="more-places">
     {# lit while the page shown is one of those behind it #}
-    {% set behind = settings or (links[4:] | selectattr("path", "equalto", active) | list) %}
+    {% set behind = settings or (entries[split:] | map(attribute=1) | selectattr("path", "defined") | selectattr("path", "equalto", active) | list) %}
     <label class="nav more{% if behind %} on{% endif %}" for="more-places">{{ icons.icon("ellipsis") }}<span>{{ t.text("server.more") }}</span></label>
     <div class="overflow">
-      {% for link in links[4:] %}
-      {{ nav(link) }}
+      {% for entry in entries[split:] %}
+      {{ draw(entry) }}
       {% endfor %}
       {{ settings_link }}
     </div>
@@ -40,16 +45,27 @@
     {% endif %}
     <div class="grow"></div>
     <div class="me">
-      <span class="av sm {{ account.name | tint }}">{{ account.name[:1] | upper }}</span>
+      {{ people.avatar(account, "sm") }}
       <div class="who"><b>{{ account.name }}</b>{% if account.admin %}<span>{{ t.text("server.admin") }}</span>{% endif %}</div>
-      <button class="icon-btn" type="button" hx-post="/login/logout" title="{{ t.text('server.logout') }}" aria-label="{{ t.text('server.logout') }}">{{ icons.icon("log-out") }}</button>
+      {# always night or always day at a click; following the system is chosen in the appearance part #}
+      <form class="theme" hx-post="/ui/appearance/" hx-swap="none" data-mode="{{ account.theme or '' }}">
+        <input type="hidden" name="language" value="{{ account.language or '' }}">
+        <input type="hidden" name="day_theme" value="{{ account.day_theme or '' }}">
+        <input type="hidden" name="night_theme" value="{{ account.night_theme or '' }}">
+        <button type="submit" name="theme" value="dark" title="{{ t.text('server.appearance.mode.dark') }}" aria-label="{{ t.text('server.appearance.mode.dark') }}">{{ icons.icon("moon") }}</button>
+        <button type="submit" name="theme" value="light" title="{{ t.text('server.appearance.mode.light') }}" aria-label="{{ t.text('server.appearance.mode.light') }}">{{ icons.icon("sun") }}</button>
+      </form>
     </div>
   </aside>
-  <main class="main">
-    <header class="top"><a class="back" href="/" data-back-link hidden aria-label="{{ t.text('server.back') }}">{{ icons.icon("chevron-left") }}</a><h1 data-title>{{ t.text("server.title") }}</h1></header>
-    {# the module's interface: where it goes and what it is called show here #}
-    <iframe class="frame" src="{{ src }}" data-address-from="/ui" data-address-to="" title="{{ t.text('server.title') }}"></iframe>
-  </main>
+  {# on a narrow screen, the panels sit in a strip above the bottom bar: the bar comes first, the column reversed #}
+  {% if strip %}<div class="strip">{% for panel in strip %}<iframe class="panel" src="{{ panel.src }}" data-fit title="{{ panel.key }}"></iframe>{% endfor %}</div>{% endif %}
+  {# the page draws its own top bar; where it goes and what it is called show in the address bar and the title #}
+  <main class="main"><iframe class="frame" src="{{ src }}" data-address-from="/ui" data-address-to="" title="{{ t.text('server.title') }}"></iframe></main>
 </div>
+<dialog class="dialog" data-stale aria-labelledby="stale-title">
+  <h3 id="stale-title">{{ t.text("server.stale.title") }}</h3>
+  <p class="muted">{{ t.text("server.stale.text") }}</p>
+  <button class="btn primary" type="button" data-refresh>{{ t.text("server.stale.refresh") }}</button>
+</dialog>
 </body>
 </html>

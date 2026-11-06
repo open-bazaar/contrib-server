@@ -7,8 +7,8 @@ lazy from collections.abc import AsyncIterator, Callable
 
 from .contracts import Theme
 
-# what 0.2 stored for an account's look
-_LEGACY = {"light": "day", "dark": "night"}
+# the morning and the night market, the day and night themes nobody chose
+_DEFAULT = {"light": "day", "dark": "night"}
 
 
 class ThemeRegistry:
@@ -30,25 +30,26 @@ class ThemeRegistry:
             self.themes.remove(theme)
             self._changed()
 
-    def chosen(self, name: str | None) -> str:
-        """The registered theme an account chose, or nothing to follow the
-        system."""
-        name = _LEGACY.get(name or "", name or "")
-        return name if any(theme.name == name for theme in self.themes) else ""
-
     def bg(self, name: str) -> str:
         """The background a theme paints, for the browser's own chrome."""
         return next(
             (theme.tokens.bg for theme in self.themes if theme.name == name), ""
         )
 
-    def system(self) -> dict[str, str]:
-        """The theme followed for a light and for a dark system: the first
+    def system(self, day: str | None, night: str | None) -> dict[str, str]:
+        """The themes worn by day and by night: the ones chosen while they are
+        registered, else the morning and the night market, else the first
         registered of that scheme, or the first of all."""
-        return {
-            scheme: next(
-                (theme.name for theme in self.themes if theme.scheme == scheme),
-                self.themes[0].name if self.themes else "",
-            )
-            for scheme in ("light", "dark")
-        }
+        names = [theme.name for theme in self.themes]
+        worn: dict[str, str] = {}
+        for scheme, chosen in (("light", day), ("dark", night)):
+            if chosen in names:
+                worn[scheme] = chosen
+            elif _DEFAULT[scheme] in names:
+                worn[scheme] = _DEFAULT[scheme]
+            else:
+                worn[scheme] = next(
+                    (theme.name for theme in self.themes if theme.scheme == scheme),
+                    names[0] if names else "",
+                )
+        return worn

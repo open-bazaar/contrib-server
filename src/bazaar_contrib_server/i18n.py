@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal, get_args
 lazy import tomllib
 lazy from collections.abc import Mapping
 lazy from pathlib import Path
 
 from jinja2 import Environment, StrictUndefined, Template
 
-ENGLISH = "en"
-SIMPLIFIED_CHINESE = "zh-CN"
-LANGUAGES = (ENGLISH, SIMPLIFIED_CHINESE)
+type Language = Literal["en", "zh-CN"]
+LANGUAGES: tuple[Language, ...] = get_args(Language.__value__)
+ENGLISH: Language = "en"
+SIMPLIFIED_CHINESE: Language = "zh-CN"
 
 _environment = Environment(undefined=StrictUndefined, autoescape=False)
 

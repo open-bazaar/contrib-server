@@ -6,30 +6,28 @@ from __future__ import annotations
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
 lazy import asyncio
+lazy import json
 lazy import mimetypes
-lazy from collections.abc import AsyncIterator, Sequence
+lazy from collections.abc import AsyncIterator, Mapping, Sequence
 lazy from hashlib import blake2b
 lazy from importlib.resources import files
 lazy from pathlib import Path
-lazy from typing import Literal, cast
+lazy from typing import Any
 
 lazy from bazaar_contrib_http import Http
-lazy from bazaar_contrib_storage import (
-    Column,
-    Compare,
-    Database,
-    Delete,
-    Insert,
-    Select,
-    Session,
-    Value,
-)
+lazy from bazaar_contrib_storage import Database
 lazy from jinja2 import PackageLoader
-lazy from pydantic import BaseModel, ValidationError
+lazy from pydantic import BaseModel, ConfigDict, Field, ValidationError
+lazy from starlette.applications import Starlette
 lazy from starlette.datastructures import MutableHeaders
 lazy from starlette.exceptions import HTTPException
 lazy from starlette.requests import HTTPConnection, Request
-lazy from starlette.responses import PlainTextResponse, RedirectResponse, Response
+lazy from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 lazy from starlette.routing import Route
 lazy from starlette.staticfiles import StaticFiles
 lazy from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -38,11 +36,14 @@ from .contracts import (
     NAME,
     RESERVED,
     Account,
+    Admitted,
+    Appearance,
     Login,
-    OverviewItem,
     PermissionItem,
     SettingsItem,
     SidebarItem,
+    SidebarPanel,
+    Topic,
 )
 lazy from .i18n import Catalogs, Translator, catalogs, language
 lazy from .pages import PACKAGE, Pages, build
@@ -79,7 +80,8 @@ class Shell:
         self._catalogs = Catalogs()
         self._modules: set[str] = set()
         self._sidebar: list[SidebarItem] = []
-        self._overview: list[OverviewItem] = []
+        self._panels: list[SidebarPanel] = []
+        self._topics: dict[str, Topic] = {}
         self._settings: list[SettingsItem] = []
         self._permissions: list[PermissionItem] = []
         self._login: Login | None = None
@@ -125,11 +127,9 @@ class Shell:
     @asynccontextmanager
     async def serving(self) -> AsyncIterator[None]:
         resources = files(PACKAGE) / "resources"
-        overview = await asyncio.to_thread(
-            (
-                resources / "templates" / "server" / "icons" / "layout-dashboard.svg"
-            ).read_text,
-            encoding="utf-8",
+        icons = resources / "templates" / "server" / "icons"
+        appearance = await asyncio.to_thread(
+            (icons / "sun.svg").read_text, encoding="utf-8"
         )
         async with (
             self._http.route("/", self._home, methods=["GET"]),
@@ -137,17 +137,9 @@ class Shell:
             self._http.route("/static/server/theme.css", self._theme, methods=["GET"]),
             self.module(
                 "server",
+                api=Starlette(routes=[Route("/poll", self._poll, methods=["POST"])]),
                 static=Path(str(resources / "static")),
                 locales=Path(str(resources / "locales")),
-            ),
-            self.module(
-                "overview",
-                ui=self._own.application(
-                    [
-                        Route("/", self._overview_page),
-                        Route("/move", self._overview_move, methods=["POST"]),
-                    ]
-                ),
             ),
             self.module(
                 "settings",
@@ -159,8 +151,24 @@ class Shell:
                     ]
                 ),
             ),
-            self.sidebar(
-                SidebarItem(text="server.overview", icon=overview, path="/overview")
+            self.module(
+                "appearance",
+                ui=self._own.application(
+                    [
+                        Route("/", self._appearance_page),
+                        Route("/", self._appearance_save, methods=["POST"]),
+                    ]
+                ),
+            ),
+            self.settings(
+                SettingsItem(
+                    key="appearance",
+                    title="server.appearance",
+                    icon=appearance,
+                    group="server.settings.personal",
+                    description="server.appearance.description",
+                    src="/ui/appearance/",
+                )
             ),
         ):
             yield
@@ -215,14 +223,24 @@ class Shell:
             self._sidebar.remove(item)
 
     @asynccontextmanager
-    async def overview(self, item: OverviewItem) -> AsyncIterator[None]:
-        if any(registered.key == item.key for registered in self._overview):
-            raise ValueError(f"overview content {item.key!r} is already registered")
-        self._overview.append(item)
+    async def panel(self, item: SidebarPanel) -> AsyncIterator[None]:
+        if any(registered.key == item.key for registered in self._panels):
+            raise ValueError(f"sidebar panel {item.key!r} is already registered")
+        self._panels.append(item)
         try:
             yield
         finally:
-            self._overview.remove(item)
+            self._panels.remove(item)
+
+    @asynccontextmanager
+    async def topic(self, topic: Topic) -> AsyncIterator[None]:
+        if topic.name in self._topics:
+            raise ValueError(f"topic {topic.name!r} is already registered")
+        self._topics[topic.name] = topic
+        try:
+            yield
+        finally:
+            del self._topics[topic.name]
 
     @asynccontextmanager
     async def settings(self, item: SettingsItem) -> AsyncIterator[None]:
@@ -267,7 +285,7 @@ class Shell:
             )
         )
 
-    async def admit(self, connection: HTTPConnection) -> Account | Response:
+    async def admit(self, connection: HTTPConnection) -> Admitted | Response:
         """Who a request or a WebSocket is from, or what it gets instead:
         nothing behind the login passes while there is no login module."""
         if self._login is None:
@@ -290,8 +308,20 @@ class Shell:
         ).hexdigest()
 
     async def _home(self, request: Request) -> Response:
-        del request
-        return RedirectResponse("/overview")
+        """The first place in the account's sidebar, or its settings."""
+        answer = await self.admit(request)
+        if isinstance(answer, Response):
+            return answer
+        entries, _ = self._sidebar_of(answer.account)
+        response = RedirectResponse(
+            next(
+                (item.path for _, item, _ in entries if isinstance(item, SidebarItem)),
+                "/settings",
+            )
+        )
+        for name, value in answer.headers:
+            response.headers.append(name, value)
+        return response
 
     async def _theme(self, request: Request) -> Response:
         del request
@@ -301,28 +331,67 @@ class Shell:
             headers={"Cache-Control": "no-cache"},
         )
 
+    def _sidebar_of(
+        self, account: Account
+    ) -> tuple[
+        list[tuple[str, SidebarItem | SidebarPanel, str | None]], list[SidebarPanel]
+    ]:
+        """What the account's sidebar holds: links and panels under their
+        groups, with the heading a group opens with, each group where its
+        first entry would be; and the panels at the top."""
+
+        def visible(item: SidebarItem | SidebarPanel) -> bool:
+            return item.permission is None or account.allows(item.permission)
+
+        grouped: list[SidebarItem | SidebarPanel] = sorted(
+            [item for item in self._sidebar if visible(item)]
+            + [panel for panel in self._panels if panel.group and visible(panel)],
+            key=lambda item: item.order,
+        )
+        first: dict[str, int] = {}
+        for place, item in enumerate(grouped):
+            first.setdefault(item.group or "", place)
+        entries: list[tuple[str, SidebarItem | SidebarPanel, str | None]] = []
+        opened: set[str] = set()
+        for item in sorted(grouped, key=lambda item: first[item.group or ""]):
+            group = item.group or ""
+            kind = "link" if isinstance(item, SidebarItem) else "panel"
+            entries.append((kind, item, None if group in opened else group))
+            opened.add(group)
+        top = sorted(
+            (panel for panel in self._panels if not panel.group and visible(panel)),
+            key=lambda panel: panel.order,
+        )
+        return entries, top
+
     async def _shell(self, request: Request) -> Response:
         answer = await self.admit(request)
         if isinstance(answer, Response):
             response = answer
         else:
-            request.state.account = answer
+            account = request.state.account = answer.account
             module, _, rest = request.url.path.removeprefix("/").partition("/")
             query = f"?{request.url.query}" if request.url.query else ""
             current = f"/{module}/{rest}"
-            links = sorted(
-                (
-                    item
-                    for item in self._sidebar
-                    if item.permission is None or answer.allows(item.permission)
-                ),
-                key=lambda item: item.order,
+            entries, top = self._sidebar_of(account)
+            links = [item for _, item, _ in entries if isinstance(item, SidebarItem)]
+            # a bottom bar holds five; with more, the fifth opens the rest
+            crowded = len(links) + 1 > 5
+            split = (
+                entries.index(next(entry for entry in entries if entry[1] is links[4]))
+                if crowded
+                else len(entries)
             )
             response = await self._own.render(
                 request,
                 "server/shell.html",
                 src=f"/ui/{module}/{rest}{query}",
-                links=links,
+                entries=entries,
+                split=split,
+                crowded=crowded,
+                top=top,
+                # on a narrow screen, every panel in the strip above the bar
+                strip=top + [item for kind, item, _ in entries if kind == "panel"],
                 active=max(
                     (
                         item.path
@@ -333,77 +402,64 @@ class Shell:
                     default=None,
                 ),
             )
+            for name, value in answer.headers:
+                response.headers.append(name, value)
         for name, value in _PERSONAL.items():
             response.headers.setdefault(name, value)
         return response
 
-    async def _ordered(self, account: Account) -> list[OverviewItem]:
-        """The overview content the account may see, in the order it chose;
-        what it never placed follows, in the order it was registered."""
-        rows = await self._database.read(
-            lambda session: session.select(
-                Select(
-                    table="overview_order",
-                    where=Compare(
-                        left=Column(name="account_id"),
-                        operator="=",
-                        right=Value(value=account.id),
-                    ),
-                )
-            )
-        )
-        positions = {cast(str, row["key"]): cast(int, row["position"]) for row in rows}
-        return sorted(
-            (
-                item
-                for item in self._overview
-                if item.permission is None or account.allows(item.permission)
-            ),
-            key=lambda item: (item.key not in positions, positions.get(item.key, 0)),
-        )
-
-    async def _overview_page(self, request: Request) -> Response:
-        return await self._own.render(
-            request,
-            "server/overview.html",
-            items=await self._ordered(request.state.account),
-        )
-
-    async def _overview_move(self, request: Request) -> Response:
+    async def _poll(self, request: Request) -> Response:
+        """One check of everything a window follows: the states changed since
+        it last saw them, and what it may no longer see."""
         account: Account = request.state.account
+        if request.headers.get("X-Build") not in (None, self.build):
+            return JSONResponse({"stale": True})
         try:
-            move = _Move.model_validate(dict(await request.form()))
+            asked = _Poll.model_validate_json(await request.body())
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-        items = await self._ordered(account)
-        keys = [item.key for item in items]
-        if move.key not in keys:
-            raise HTTPException(status_code=404)
-        index = keys.index(move.key)
-        step = -1 if move.toward == "earlier" else 1
-        items.insert(min(max(index + step, 0), len(items) - 1), items.pop(index))
-
-        async def save(session: Session) -> None:
-            mine = Compare(
-                left=Column(name="account_id"),
-                operator="=",
-                right=Value(value=account.id),
-            )
-            await session.delete(Delete(table="overview_order", where=mine))
-            await session.insert(
-                Insert(
-                    table="overview_order",
-                    rows=tuple(
-                        {"account_id": account.id, "key": item.key, "position": place}
-                        for place, item in enumerate(items)
-                    ),
+        states: dict[str, Mapping[str, object] | None] = {}
+        changes: list[dict[str, object]] = []
+        for subscription in asked.subscriptions:
+            key = json.dumps([subscription.topic, subscription.scope], sort_keys=True)
+            if key not in states:
+                topic = self._topics.get(subscription.topic)
+                states[key] = (
+                    None
+                    if topic is None
+                    or set(subscription.scope) != set(topic.fields)
+                    or (
+                        topic.permission is not None
+                        and not account.allows(topic.permission)
+                    )
+                    else await topic.fetch(account, subscription.scope)
                 )
-            )
+            state = states[key]
+            if state is None:
+                changes.append({"id": subscription.id, "unavailable": True})
+            elif state != subscription.seen:
+                changes.append({"id": subscription.id, "state": state})
+        return JSONResponse({"changes": changes})
 
-        await self._database.transaction(save)
+    async def _appearance_page(self, request: Request) -> Response:
         return await self._own.render(
-            request, "server/overview_board.html", items=items
+            request, "server/appearance.html", themes=self.themes.themes
         )
+
+    async def _appearance_save(self, request: Request) -> Response:
+        account: Account = request.state.account
+        try:
+            # an empty choice is no choice: the browser's language, the system's look
+            appearance = Appearance.model_validate(
+                {key: value or None for key, value in (await request.form()).items()}
+            )
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        if self._login is None:
+            raise HTTPException(status_code=503)
+        await self._login.dress(account.id, appearance)
+        # the shell around the page wears the old look until it is drawn again
+        return Response(status_code=204, headers={"HX-Trigger": "dressed"})
 
     async def _settings_page(self, request: Request) -> Response:
         account: Account = request.state.account
@@ -448,9 +504,19 @@ class Shell:
         )
 
 
-class _Move(BaseModel):
-    key: str
-    toward: Literal["earlier", "later"]
+class _Subscription(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(max_length=64)
+    topic: str = Field(max_length=200)
+    scope: dict[str, str] = Field(default_factory=dict)
+    seen: Any = None
+
+
+class _Poll(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    subscriptions: list[_Subscription] = Field(max_length=500)
 
 
 class _Gate:
@@ -464,12 +530,15 @@ class _Gate:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         started = False
+        carried: tuple[tuple[str, str], ...] = ()
 
         async def sending(message: Message) -> None:
             nonlocal started
             if message["type"] == "http.response.start":
                 started = True
                 headers = MutableHeaders(scope=message)
+                for name, value in carried:
+                    headers.append(name, value)
                 for name, value in _PERSONAL.items():
                     headers.setdefault(name, value)
             await send(message)
@@ -493,7 +562,8 @@ class _Gate:
                 if isinstance(answer, Response):
                     await answer(scope, receiving, sending)
                     return
-                scope.setdefault("state", {})["account"] = answer
+                scope.setdefault("state", {})["account"] = answer.account
+                carried = answer.headers
             await self._app(scope, receiving, sending)
         except HTTPException as error:
             # an application that answers no HTTP errors of its own

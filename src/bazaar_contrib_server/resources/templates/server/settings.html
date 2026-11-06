@@ -1,11 +1,14 @@
 {% extends "server/base.html" %}
 {% import "server/icons.html" as icons %}
-{# a part opened on a narrow screen leads back to the directory #}
-{% block root %}{% if view == "part" %} data-back="/settings"{% endif %}{% endblock %}
+{% import "server/avatar.html" as people %}
 {% block title %}{{ t.text("server.settings") }}{% endblock %}
+{# a part opened on a narrow screen is named on top, with the way back to the directory #}
+{% block back %}{% if view == "part" %}/ui/settings/{% endif %}{% endblock %}
+{% block heading %}{% if view == "part" %}<span class="on-wide">{{ t.text("server.settings") }}</span><span class="on-narrow">{{ t.text(part.title) }}</span>{% else %}{{ t.text("server.settings") }}{% endif %}{% endblock %}
 {% block body %}
 <section class="content settings" data-view="{{ view }}">
-  <div class="card who"><span class="av {{ account.name | tint }}">{{ account.name[:1] | upper }}</span><div><b>{{ account.name }}</b>{% if account.admin %}<span>{{ t.text("server.admin") }}</span>{% endif %}</div></div>
+  <div class="card who">{{ people.avatar(account) }}<div><b>{{ account.name }}</b>{% if account.admin %}<span>{{ t.text("server.admin") }}</span>{% endif %}</div></div>
+  <div class="directory">
   {% if groups %}
   <nav class="snav">
     {% for group, items in groups.items() %}
@@ -16,12 +19,14 @@
     {% endfor %}
   </nav>
   {% endif %}
+  {# a plain form: the login module answers it whatever build drew this page #}
+  <form class="leave" method="post" action="/login/logout"><button class="btn" type="submit">{{ icons.icon("log-out") }}<span>{{ t.text("server.logout") }}</span></button></form>
+  </div>
   {% if part %}
   {# the directory keeps its own address; only an opened part carries the part's #}
   <iframe class="pane" src="{{ src }}" data-fit{% if view == "part" %} data-address-from="{{ part.src.rstrip('/') }}" data-address-to="/ui/settings/{{ part.key }}"{% endif %} title="{{ t.text(part.title) }}"></iframe>
   {% else %}
   <p class="empty">{{ t.text("server.settings.empty") }}</p>
   {% endif %}
-  <button class="btn leave" type="button" hx-post="/login/logout">{{ icons.icon("log-out") }}<span>{{ t.text("server.logout") }}</span></button>
 </section>
 {% endblock %}
