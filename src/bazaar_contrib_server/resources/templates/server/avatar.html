@@ -1,0 +1,4 @@
+{# the first letter on the name's colour; a picture, when the account has one, lies over it and leaves if it cannot be loaded #}
+{% macro avatar(account, size="") -%}
+<span class="av {{ size }} {{ account.name | tint }}">{{ account.name[:1] | upper }}{% if account.avatar %}<img src="{{ account.avatar }}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">{% endif %}</span>
+{%- endmacro %}

@@ -53,7 +53,7 @@ svg.i.xs { width: 13px; height: 13px; }
 .icon-btn { width: 36px; height: 36px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--text-2); border: 1px solid var(--line); background: var(--surface); position: relative; }
 .icon-btn .dot { position: absolute; top: 7px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--saffron); box-shadow: 0 0 0 2px var(--surface); }
 /* buttons */
-.btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: var(--r-sm); font-weight: 600; font-size: 13.5px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: var(--r-sm); font-weight: 600; font-size: 13.5px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); white-space: nowrap; text-decoration: none; }
 .btn.primary { background: var(--saffron); color: var(--saffron-ink); border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), inset 0 -1px 0 rgba(0, 0, 0, .14); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
 .btn.sm { height: 30px; padding: 0 10px; font-size: 12.5px; gap: 6px; border-radius: 7px; }
@@ -113,6 +113,7 @@ kbd.k { font: 500 10.5px var(--font-mono); color: inherit; opacity: .6; border: 
 .av.xs { width: 24px; height: 24px; font-size: 11px; }
 .av.sm { width: 28px; height: 28px; font-size: 11.5px; }
 .av .pip { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid var(--surface); }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; background: var(--sunken); }
 .pip.work { background: var(--saffron); } .pip.on { background: var(--jade); } .pip.fail { background: var(--crimson); } .pip.off { background: var(--faint); }
 .h1 { background: #f5a83a; }
 .h2 { background: #2fb996; }
@@ -137,9 +138,49 @@ kbd.k { font: 500 10.5px var(--font-mono); color: inherit; opacity: .6; border: 
 .input.focus { border-color: var(--saffron); box-shadow: 0 0 0 4px var(--saffron-soft); background: var(--surface); }
 .input .ph { color: var(--faint); }
 .input .suffix { margin-left: auto; color: var(--muted); font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+.input.select { position: relative; padding: 0; }
+.input.select select { appearance: none; flex: 1; height: 100%; padding: 0 36px 0 12px; border: 0; background: none; color: inherit; font: inherit; outline: none; }
+.input.select .i { position: absolute; right: 12px; color: var(--muted); pointer-events: none; }
+.input.select:has(select:focus-visible) { border-color: var(--saffron); box-shadow: 0 0 0 4px var(--saffron-soft); }
+fieldset.field { margin: 0; padding: 0; border: 0; min-width: 0; }
+fieldset.field legend { padding: 0; margin-bottom: 7px; font-size: 13px; font-weight: 600; }
 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line-soft); gap: 3px; }
 .seg span { padding: 6px 12px; border-radius: 7px; font-size: 13px; color: var(--muted); font-weight: 500; }
 .seg span.on { background: var(--raised); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+/* a choice of one, its radios hidden but still reached by keyboard */
+.seg label { position: relative; display: flex; }
+.seg label input { position: absolute; inset: 0; margin: 0; opacity: 0; }
+.seg label span { flex: 1; text-align: center; }
+.seg label:has(input:checked) span { background: var(--raised); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+.seg label:has(input:focus-visible) span { outline: 2px solid var(--saffron); outline-offset: 1px; }
+.seg.wide { display: flex; }
+.seg.wide label { flex: 1; }
+/* a theme to pick: its main colours in one swatch, its name below */
+.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.pick { position: relative; display: grid; gap: 8px; justify-items: center; font-size: 13px; color: var(--text-2); }
+.pick input { position: absolute; inset: 0; margin: 0; opacity: 0; }
+.pick .palette { position: relative; width: 100%; height: 70px; display: flex; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.pick .palette i { flex: 1; }
+.pick .palette i:first-child { flex: 3; }
+.pick .palette i:nth-child(2) { flex: 2; }
+.pick .tick { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; display: none; place-items: center; background: var(--saffron); color: var(--saffron-ink); }
+.pick .tick .i svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.pick:has(input:checked) .palette { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--saffron); }
+.pick:has(input:checked) .tick { display: grid; }
+.pick:has(input:checked) .name { color: var(--text); font-weight: 600; }
+.pick:has(input:focus-visible) .palette { outline: 2px solid var(--saffron); outline-offset: 5px; }
+.card.dress { padding: 18px 16px; display: grid; gap: 18px; max-width: 640px; }
+
+/* a page's own top bar: a way back on a narrow screen, the title, crumbs on a wide one, and its actions */
+.top { height: 68px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 28px; border-bottom: 1px solid var(--line-soft); }
+.top h1 { margin: 0; font-family: var(--font-display); font-weight: 650; font-size: 24px; letter-spacing: -.01em; font-variation-settings: "opsz" 48; }
+.top .actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.top .back, .top .on-narrow { display: none; }
+:root[data-layout="narrow"] .top { height: 56px; padding: 0 16px; gap: 6px; }
+:root[data-layout="narrow"] .top h1 { font-size: 20px; }
+:root[data-layout="narrow"] .top .back { display: grid; place-items: center; width: 36px; height: 36px; margin-left: -10px; color: var(--text-2); }
+:root[data-layout="narrow"] .top .crumbs, :root[data-layout="narrow"] .top .on-wide { display: none; }
+:root[data-layout="narrow"] .top .on-narrow { display: inline; }
 
 /* code */
 .code { background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-md); font: 12.5px/1.7 var(--font-mono); padding: 12px 14px; color: var(--text-2); position: relative; white-space: pre; overflow: auto; }
@@ -188,14 +229,16 @@ svg.i.xs { width: 14px; height: 14px; }
    shell's width, which embed.js marks on every page it frames. */
 .settings .who { display: none; }
 .snav .it > .i:last-child { display: none; }
-.settings .leave { display: none; }
+.settings .directory { display: grid; gap: 14px; align-content: start; }
+.settings .leave { justify-self: start; display: flex; }
 :root[data-layout="narrow"] .content { padding: 16px; }
 :root[data-layout="narrow"] .settings { grid-template-columns: 1fr; gap: 14px; }
-:root[data-layout="narrow"] .settings[data-view="directory"] .pane, :root[data-layout="narrow"] .settings[data-view="part"] .snav { display: none; }
+:root[data-layout="narrow"] .settings[data-view="directory"] .pane, :root[data-layout="narrow"] .settings[data-view="part"] .directory { display: none; }
 :root[data-layout="narrow"] .settings[data-view="directory"] .who { display: flex; align-items: center; gap: 12px; padding: 14px; }
 :root[data-layout="narrow"] .settings .who b { display: block; font-size: 15px; }
 :root[data-layout="narrow"] .settings .who span { font-size: 12.5px; color: var(--muted); }
-:root[data-layout="narrow"] .settings[data-view="directory"] .leave { display: flex; height: 48px; justify-content: center; font-size: 14.5px; }
+:root[data-layout="narrow"] .settings .leave { justify-self: stretch; }
+:root[data-layout="narrow"] .settings .leave .btn { flex: 1; height: 48px; justify-content: center; font-size: 14.5px; }
 :root[data-layout="narrow"] .snav { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 0; gap: 0; }
 :root[data-layout="narrow"] .snav .it { gap: 14px; padding: 12px 16px; border-radius: 0; font-size: 14.5px; font-weight: 600; color: var(--text); }
 :root[data-layout="narrow"] .snav .it + .it { border-top: 1px solid var(--line-soft); }

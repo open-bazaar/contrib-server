@@ -110,16 +110,22 @@ class Pages:
         account = getattr(request.state, "account", None)
         # the zone the page asks in, or the one its browser left in a cookie
         named = request.headers.get("X-Timezone") or request.cookies.get("bcs_tz")
+        system = (
+            self._shell.themes.system(None, None)
+            if account is None
+            else self._shell.themes.system(account.day_theme, account.night_theme)
+        )
+        mode = None if account is None else account.theme
         viewer = {
             "account": account,
             "t": self._shell.translator(request),
-            "theme": self._shell.themes.chosen(
-                None if account is None else account.theme
-            ),
-            "system": self._shell.themes.system(),
+            # nothing for a page that follows the system
+            "theme": system[mode] if mode is not None else "",
+            "system": system,
             "theme_bg": self._shell.themes.bg,
             "stylesheet": self._shell.stylesheet,
             "build": self.build,
+            "server_build": self._shell.build,
             "request": request,
         }
         # a zone is read from disk the first time it is named

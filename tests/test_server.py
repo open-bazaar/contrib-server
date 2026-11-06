@@ -171,7 +171,7 @@ async def test_reserved_and_taken_names_cannot_name_a_module(tmp_path: Path):
 
         return entry(f"takes-{name}", [SERVER], lifespan)
 
-    names = ("ui", "api", "static", "login", "starlink", "overview", "Notes")
+    names = ("ui", "api", "static", "login", "starlink", "settings", "Notes")
     async with (
         running() as (hub, _, url),
         client() as session,
@@ -226,9 +226,9 @@ async def test_pages_and_apis_behind_the_login_are_refused_without_a_login_modul
             ("GET", "/ui/notes/"),
             ("GET", "/api/notes/items"),
             ("POST", "/api/notes/items"),
-            ("GET", "/overview"),
             ("GET", "/settings"),
-            ("GET", "/ui/overview/"),
+            ("GET", "/settings"),
+            ("GET", "/ui/settings/"),
         ):
             refused = await session.request(method, f"{url}{path}")
             assert refused.status_code == 503, path
@@ -271,15 +271,11 @@ async def test_refs_keep_the_numbers_a_published_database_gave(home: Path):
         assert await server.refs.values(["41", "4041"]) is None
         assert await server.refs.values(["agent:kana"]) is None
 
-    assert {"refs", "overview_order", "accounts"} <= await asyncio.to_thread(
-        tables, data / "bcs.sqlite3"
-    )
+    assert {"refs", "accounts"} <= await asyncio.to_thread(tables, data / "bcs.sqlite3")
 
 
 async def test_a_new_server_database_gets_the_shell_tables(home: Path):
     async with running():
         pass
 
-    assert {"refs", "overview_order"} <= await asyncio.to_thread(
-        tables, home / ".bcn" / "bcs.sqlite3"
-    )
+    assert {"refs"} <= await asyncio.to_thread(tables, home / ".bcn" / "bcs.sqlite3")

@@ -16,8 +16,19 @@
 </head>
 {# every request says the viewer's zone, and which build drew the page: one
    left open across an upgrade is asked to refresh rather than patched with
-   pieces of the new build #}
-<body hx-headers:inherited='js:{"X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone, "X-Build": "{{ build }}"}'>
+   pieces of the new build; the update bus goes by the server's own build #}
+<body data-build="{{ server_build }}" hx-headers:inherited='js:{"X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone, "X-Build": "{{ build }}"}'>
+{# the page's own top bar: a way back on a narrow screen, its title, crumbs on a wide one, and its actions #}
+{# the address back is a block of its own, read by the top bar and drawn nowhere else #}
+{% if false %}{% block back %}{% endblock %}{% endif %}
+{% block top %}{% set back = self.back() | trim %}
+<header class="top">
+  {% if back %}<a class="back" href="{{ back }}" aria-label="{{ t.text('server.back') }}"><span class="i">{% include "server/icons/chevron-left.svg" %}</span></a>{% endif %}
+  <h1>{% block heading %}{{ self.title() }}{% endblock %}</h1>
+  {% block crumbs %}{% endblock %}
+  <div class="actions">{% block actions %}{% endblock %}</div>
+</header>
+{% endblock %}
 {% block body %}{% endblock %}
 <dialog class="dialog" data-stale aria-labelledby="stale-title">
   <h3 id="stale-title">{{ t.text("server.stale.title") }}</h3>

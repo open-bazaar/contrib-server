@@ -1,6 +1,7 @@
 // Every page of the server, the shell included, runs this: it wears the
 // shell's theme and language, tells the frame around it where it went, what
-// it is called and how tall it is, and follows what its own frames tell it.
+// it is called and how tall it is, follows what its own frames tell it, and
+// hands what it follows to the update bus the outermost window keeps.
 (() => {
   const root = document.documentElement;
   // a page that belongs to the whole window, like the login page, leaves any frame it was opened in
@@ -54,8 +55,6 @@
           path: location.pathname + location.search,
           title: document.title,
           height: root.offsetHeight,
-          // where a narrow screen's back button goes from here, if anywhere
-          back: root.dataset.back || "",
         },
       },
       location.origin,
@@ -82,7 +81,7 @@
     if (event.origin !== location.origin || !event.data?.bazaar) return;
     const frame = [...document.querySelectorAll("iframe")].find((f) => f.contentWindow === event.source);
     if (!frame) return;
-    const { path, title, height, back } = event.data.bazaar;
+    const { path, title, height } = event.data.bazaar;
     if (frame.hasAttribute("data-fit")) frame.style.height = `${height}px`;
     const from = frame.dataset.addressFrom;
     if (from === undefined) return;
@@ -91,12 +90,138 @@
       if (address !== location.pathname + location.search) history.replaceState(history.state, "", address);
     }
     if (title && document.title !== title) document.title = title;
-    for (const heading of document.querySelectorAll("[data-title]")) heading.textContent = title;
-    for (const link of document.querySelectorAll("[data-back-link]")) {
-      link.hidden = !back;
-      if (back) link.href = back;
-    }
   });
+
+  // The update bus, as 0.2's /poll: every page hands what it follows to the
+  // one bus of the outermost window, which asks the server about all of it in
+  // one request a round, at most every second, and tells each follower what
+  // changed or that it may no longer see it.
+  const outer = shell ? window.top : window;
+  if (outer === window && !window.bazaarBus) {
+    const records = new Set();
+    let timer = null;
+    let request = null;
+    let next = 0;
+    let stopped = false;
+    const arm = () => {
+      if (timer === null && !stopped && !document.hidden && records.size) timer = setTimeout(tick, 0);
+    };
+    const check = async () => {
+      const groups = new Map();
+      for (const record of records) {
+        const identity = JSON.stringify([record.topic, record.scope, record.seen]);
+        if (!groups.has(identity)) {
+          groups.set(identity, { id: String(groups.size), topic: record.topic, scope: record.scope, seen: record.seen, records: [] });
+        }
+        groups.get(identity).records.push(record);
+      }
+      const asked = new Map([...groups.values()].map((group) => [group.id, group]));
+      const controller = new AbortController();
+      request = { controller, started: Date.now() };
+      try {
+        const response = await fetch("/api/server/poll", {
+          method: "POST",
+          credentials: "same-origin",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json", "X-Build": document.body.dataset.build || "" },
+          body: JSON.stringify({
+            subscriptions: [...groups.values()].map(({ id, topic, scope, seen }) => ({ id, topic, scope, seen })),
+          }),
+        });
+        // a session that ran out sends the whole window to log in again
+        if (response.redirected || response.status === 401) return window.location.reload();
+        if (!response.ok) {
+          next = Date.now() + 5000;
+          return;
+        }
+        const answer = await response.json();
+        if (answer.stale) {
+          stopped = true;
+          return document.dispatchEvent(new CustomEvent("stale"));
+        }
+        for (const change of answer.changes) {
+          for (const record of asked.get(change.id)?.records ?? []) {
+            if (!records.has(record)) continue;
+            if (change.unavailable) records.delete(record);
+            else record.seen = change.state;
+            try {
+              record.callback(change);
+            } catch (error) {
+              console.error(error);
+            }
+          }
+        }
+        next = Date.now() + 1000;
+      } catch (error) {
+        if (error.name !== "AbortError") console.warn("The update bus could not ask the server", error);
+        next = Date.now() + 5000;
+      } finally {
+        request = null;
+      }
+    };
+    const tick = () => {
+      timer = null;
+      if (stopped || document.hidden) return;
+      // what was followed for an element that left its page is let go
+      for (const record of records) {
+        if (record.element && !record.element.isConnected) records.delete(record);
+      }
+      if (request && Date.now() - request.started >= 15000) request.controller.abort();
+      if (!request && records.size && Date.now() >= next) void check();
+      if (records.size) timer = setTimeout(tick, 1000);
+    };
+    // a hidden window asks nothing until it is seen again
+    document.addEventListener("visibilitychange", arm);
+    window.bazaarBus = {
+      follow({ topic, scope = {}, seen = null, element = null }, callback) {
+        const record = { topic, scope, seen, element, callback };
+        records.add(record);
+        arm();
+        return () => records.delete(record);
+      },
+    };
+  }
+  // what this page follows: elements naming a topic hear of its changes; one
+  // marked data-tally shows the state as a badge
+  const leaving = [];
+  const followed = new WeakSet();
+  const follow = (element) => {
+    if (followed.has(element)) return;
+    followed.add(element);
+    const stop = outer.bazaarBus.follow(
+      {
+        topic: element.dataset.topic,
+        scope: JSON.parse(element.dataset.scope || "{}"),
+        seen: element.dataset.seen ? JSON.parse(element.dataset.seen) : null,
+        element,
+      },
+      (change) => {
+        if (!element.isConnected) return stop();
+        if (element.hasAttribute("data-tally")) {
+          const state = change.state || {};
+          element.textContent = state.text || "";
+          element.className = `tally ${state.kind || ""}`;
+          element.hidden = !state.text;
+        }
+        element.dispatchEvent(new CustomEvent("bazaar:change", { detail: change, bubbles: true }));
+      },
+    );
+    leaving.push(stop);
+  };
+  const scan = (within) => {
+    if (within.matches?.("[data-topic]")) follow(within);
+    within.querySelectorAll?.("[data-topic]").forEach(follow);
+  };
+  addEventListener("DOMContentLoaded", () => scan(document));
+  // htmx processes the whole page as it starts, and then each piece it swaps in
+  document.addEventListener("htmx:after:process", (event) => scan(event.target));
+  // a page kept for the back button goes on following when it comes back
+  addEventListener("pagehide", (event) => {
+    if (!event.persisted) leaving.forEach((stop) => stop());
+  });
+
+  // A page that changed how the account's pages look has the whole window drawn again.
+  document.addEventListener("dressed", () => window.top.location.reload());
 
   // A page another build drew is not patched with pieces of this one.
   document.addEventListener("stale", () => document.querySelector("dialog[data-stale]")?.showModal());

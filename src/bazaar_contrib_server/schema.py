@@ -1,5 +1,5 @@
-"""The server's own tables: refs, taken over from the published history, and
-the order each account gave the overview."""
+"""The server's own table: refs, taken over from the published history. The
+order each account gave the overview went to the overview's own plugin."""
 
 import bazaar_contrib_storage as s
 from bazaar_contrib_schema import Dependency, Migration, ModuleSchema
@@ -34,6 +34,11 @@ MODULE = ModuleSchema(
             version=2,
             name="overview_order",
             operations=(s.CreateTable(table=OVERVIEW_ORDER),),
+        ),
+        Migration(
+            version=3,
+            name="overview_elsewhere",
+            operations=(s.DropTable(table="overview_order"),),
         ),
     ),
     baseline=BASELINE,

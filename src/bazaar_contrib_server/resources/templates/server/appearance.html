@@ -1,0 +1,42 @@
+{% extends "server/base.html" %}
+{% import "server/icons.html" as icons %}
+{% block title %}{{ t.text("server.appearance") }}{% endblock %}
+{# a part of the settings page, under its top bar #}
+{% block top %}{% endblock %}
+{% block body %}
+{# every change is kept at once; the shell is drawn again in the new look #}
+<form class="card dress" hx-post="/ui/appearance/" hx-trigger="change" hx-swap="none">
+  <div class="field">
+    <label for="language">{{ t.text("server.appearance.language") }}</label>
+    <div class="input select">
+      <select id="language" name="language">
+        <option value="">{{ t.text("server.appearance.language.browser") }}</option>
+        {% for code in languages %}<option value="{{ code }}"{% if account.language == code %} selected{% endif %}>{{ t.text("server.language." ~ code) }}</option>{% endfor %}
+      </select>
+      {{ icons.icon("chevron-down") }}
+    </div>
+  </div>
+  <fieldset class="field">
+    <legend>{{ t.text("server.appearance.mode") }}</legend>
+    <div class="seg wide">
+      {% for value, key in (("", "system"), ("light", "light"), ("dark", "dark")) %}
+      <label><input type="radio" name="theme" value="{{ value }}"{% if (account.theme or "") == value %} checked{% endif %}><span>{{ t.text("server.appearance.mode." ~ key) }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% for name, scheme in (("day_theme", "light"), ("night_theme", "dark")) %}
+  <fieldset class="field">
+    <legend>{{ t.text("server.appearance." ~ name) }}</legend>
+    <div class="picks">
+      {% for theme in themes %}
+      <label class="pick">
+        <input type="radio" name="{{ name }}" value="{{ theme.name }}"{% if system[scheme] == theme.name %} checked{% endif %}>
+        <span class="palette">{% for token in ("bg", "surface", "text", "saffron", "jade", "crimson", "indigo") %}<i style="background: {{ theme.tokens[token] }}"></i>{% endfor %}<span class="tick">{{ icons.icon("check") }}</span></span>
+        <span class="name">{{ theme.labels.get(t.language) or theme.labels.values() | first }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+</form>
+{% endblock %}

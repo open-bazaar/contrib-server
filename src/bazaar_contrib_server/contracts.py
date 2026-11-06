@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal, Protocol
-lazy from collections.abc import Sequence
+lazy from collections.abc import Awaitable, Callable, Mapping, Sequence
 lazy from contextlib import AbstractAsyncContextManager
 lazy from pathlib import Path
 
@@ -13,6 +14,7 @@ lazy from starlette.requests import HTTPConnection
 lazy from starlette.responses import Response
 lazy from starlette.types import ASGIApp
 
+from .i18n import Language
 lazy from .i18n import Translator
 lazy from .pages import Pages
 lazy from .refs import Refs
@@ -28,22 +30,45 @@ class _Item(BaseModel):
 
 
 class SidebarItem(_Item):
-    """A link in the sidebar, for the accounts holding its permission point."""
+    """A link in the sidebar, for the accounts holding its permission point,
+    under its group's heading; links naming the same group share it."""
 
     text: str
     # an SVG icon stroked in currentColor, as lucide's are
     icon: str
     path: str
+    # the heading's text key; the server's own are server.sidebar.workbench and server.sidebar.extensions
+    group: str
+    permission: str | None = None
+    order: int = 0
+    # the update bus topic whose state is the badge beside the link
+    badge: str | None = None
+
+
+class SidebarPanel(_Item):
+    """A module's own section of the sidebar, its page loaded in an iframe:
+    under its group's heading, or at the top when it names no group; on a
+    narrow screen, in the strip above the bottom bar."""
+
+    key: str = Field(pattern=NAME)
+    src: str
+    group: str | None = None
     permission: str | None = None
     order: int = 0
 
 
-class OverviewItem(_Item):
-    """Content of the overview, loaded in an iframe."""
+@dataclass(frozen=True, slots=True)
+class Topic:
+    """What pages and the sidebar follow through the update bus. Its state is
+    fetched for an account and a scope naming the fields it takes; nothing
+    when the account may not see it. A badge topic's state is its text and
+    kind: count, unread or soon."""
 
-    key: str = Field(pattern=NAME)
-    title: str
-    src: str
+    name: str
+    fetch: Callable[
+        [Account, Mapping[str, str]], Awaitable[Mapping[str, object] | None]
+    ]
+    fields: tuple[str, ...] = ()
     permission: str | None = None
 
 
@@ -146,10 +171,26 @@ class Account(Protocol):
     def id(self) -> str: ...
 
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """What pages call the account."""
+        ...
 
     @property
-    def theme(self) -> str | None: ...
+    def avatar(self) -> str | None:
+        """The address of the account's picture, when it has one."""
+        ...
+
+    @property
+    def theme(self) -> Literal["light", "dark"] | None:
+        """Always the day theme, always the night theme, or nothing to follow
+        the system."""
+        ...
+
+    @property
+    def day_theme(self) -> str | None: ...
+
+    @property
+    def night_theme(self) -> str | None: ...
 
     @property
     def language(self) -> str | None: ...
@@ -160,6 +201,25 @@ class Account(Protocol):
     def allows(self, point: str) -> bool: ...
 
 
+@dataclass(frozen=True, slots=True)
+class Admitted:
+    """The account a request is from, and headers its answer carries along,
+    such as the cookie of a session the login module renewed on the way."""
+
+    account: Account
+    headers: tuple[tuple[str, str], ...] = ()
+
+
+class Appearance(_Item):
+    """How an account's pages look and what language they speak; nothing
+    chosen follows the browser and the system."""
+
+    language: Language | None = None
+    theme: Literal["light", "dark"] | None = None
+    day_theme: str | None = Field(default=None, pattern=NAME)
+    night_theme: str | None = Field(default=None, pattern=NAME)
+
+
 class Login(Protocol):
     """The module that says who a request is from; one at a time."""
 
@@ -168,9 +228,13 @@ class Login(Protocol):
         """Served at /login to anyone; signing out is a POST to /login/logout."""
         ...
 
-    async def account(self, connection: HTTPConnection) -> Account | Response:
+    async def account(self, connection: HTTPConnection) -> Admitted | Response:
         """The account a request or a WebSocket is from, or the answer it
         gets instead."""
+        ...
+
+    async def dress(self, account_id: str, appearance: Appearance) -> None:
+        """Keep how the account's pages look from now on."""
         ...
 
 
@@ -206,7 +270,11 @@ class Server(Protocol):
 
     def sidebar(self, item: SidebarItem) -> AbstractAsyncContextManager[None]: ...
 
-    def overview(self, item: OverviewItem) -> AbstractAsyncContextManager[None]: ...
+    def panel(self, item: SidebarPanel) -> AbstractAsyncContextManager[None]: ...
+
+    def topic(self, topic: Topic) -> AbstractAsyncContextManager[None]:
+        """Let pages and the sidebar follow the topic through the update bus."""
+        ...
 
     def settings(self, item: SettingsItem) -> AbstractAsyncContextManager[None]: ...
 

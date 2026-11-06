@@ -1,4 +1,4 @@
-/* The shell around every module: the sidebar, the top bar and the frame. */
+/* The shell around every module: the sidebar, its panels and badges, and the frame. */
 
 html, body { height: 100%; }
 body { background: var(--bg); overflow: hidden; }
@@ -31,16 +31,16 @@ a { color: inherit; text-decoration: none; }
 .me .who b { display: block; font-weight: 600; font-size: 13.5px; }
 .me .who span { font-size: 12px; color: var(--muted); }
 .me .theme { margin-left: auto; display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--sunken); border: 1px solid var(--line-soft); }
-.me .theme span { width: 26px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); }
-.me .theme span.on { background: var(--raised); color: var(--saffron); box-shadow: var(--shadow); }
+.me .theme button { width: 26px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.me .theme button .i svg { width: 14px; height: 14px; }
+/* lit: the mode the account chose, or the system's while it follows the system */
+.me .theme[data-mode="dark"] button[value="dark"], .me .theme[data-mode="light"] button[value="light"] { background: var(--raised); color: var(--saffron); box-shadow: var(--shadow); }
+@media (prefers-color-scheme: dark) { .me .theme[data-mode=""] button[value="dark"] { background: var(--raised); color: var(--saffron); box-shadow: var(--shadow); } }
+@media (prefers-color-scheme: light) { .me .theme[data-mode=""] button[value="light"] { background: var(--raised); color: var(--saffron); box-shadow: var(--shadow); } }
 
 .main { display: flex; flex-direction: column; min-width: 0; height: 100vh; height: 100dvh; }
-.top { height: 68px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 28px; border-bottom: 1px solid var(--line-soft); }
-.top h1 { margin: 0; font-family: var(--font-display); font-weight: 650; font-size: 24px; letter-spacing: -.01em; font-variation-settings: "opsz" 48; }
 .frame { flex: 1; min-height: 0; width: 100%; border: 0; display: block; }
-.me .icon-btn { margin-left: auto; width: 32px; height: 32px; }
 
-.top .back { display: none; }
 /* what does not fit the bottom bar sits in the sidebar as usual; settings at the foot */
 .overflow { display: contents; }
 .side .grow { order: 1; }
@@ -53,13 +53,11 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 959px) {
   .app { display: flex; flex-direction: column-reverse; }
   .main { height: auto; flex: 1; min-height: 0; }
-  .top { height: 56px; padding: 0 16px; gap: 6px; }
-  .top h1 { font-size: 20px; }
-  .top .back:not([hidden]) { display: grid; place-items: center; width: 36px; height: 36px; margin-left: -10px; color: var(--text-2); }
   .side { flex-direction: row; gap: 4px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line-soft); overflow: visible; }
   .side .brand, .side .grow, .side .me { display: none; }
   .side .nav { flex: 1; flex-direction: column; gap: 3px; padding: 7px 0 6px; border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--muted); }
   .side .nav .i svg { width: 20px; height: 20px; }
+  .side .nav-group { display: none; }
   .side .nav.on { background: var(--saffron-soft); color: var(--saffron); box-shadow: none; }
   .side .nav.on::before { content: none; }
   .side .more { display: flex; cursor: pointer; }
@@ -70,4 +68,21 @@ a { color: inherit; text-decoration: none; }
   .more-toggle:checked ~ .overflow { display: flex; }
   .overflow .nav { flex-direction: row; gap: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--text-2); }
   .overflow .nav .i svg { width: 18px; height: 18px; }
+}
+
+/* a badge beside a link, kept by the update bus */
+.nav .tally { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; font-size: 12px; color: var(--faint); }
+.nav .tally[hidden] { display: none; }
+.nav .tally.unread { border-radius: 999px; background: var(--saffron); color: var(--saffron-ink); font-size: 11.5px; font-weight: 700; }
+.nav .tally.soon { font-size: 11px; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 999px; }
+/* a module's panel in the sidebar, as tall as its page; the strip shows on a narrow screen alone */
+.side .panel { display: block; width: 100%; border: 0; flex: none; }
+.strip { display: none; }
+@media (max-width: 959px) {
+  .side .panel { display: none; }
+  .strip { display: block; flex: none; border-top: 1px solid var(--line-soft); background: var(--side-bg); }
+  .strip .panel { display: block; width: 100%; border: 0; }
+  .side .nav .tally { position: absolute; top: 2px; left: calc(50% + 5px); margin: 0; }
+  .side .nav .tally:not(.unread) { display: none; }
+  .side .nav .tally.unread { min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; }
 }
