@@ -75,14 +75,18 @@
     new MutationObserver(report).observe(document.head, { subtree: true, childList: true, characterData: true });
   });
 
-  // A frame marked data-fit is as tall as its page; one marked with an
-  // address carries this page's address and title along with its own.
+  // A frame marked data-fit is as tall as its page, and marked data-empty
+  // while its page draws nothing; one marked with an address carries this
+  // page's address and title along with its own.
   addEventListener("message", (event) => {
     if (event.origin !== location.origin || !event.data?.bazaar) return;
     const frame = [...document.querySelectorAll("iframe")].find((f) => f.contentWindow === event.source);
     if (!frame) return;
     const { path, title, height } = event.data.bazaar;
-    if (frame.hasAttribute("data-fit")) frame.style.height = `${height}px`;
+    if (frame.hasAttribute("data-fit")) {
+      frame.style.height = `${height}px`;
+      frame.toggleAttribute("data-empty", height === 0);
+    }
     const from = frame.dataset.addressFrom;
     if (from === undefined) return;
     if (path.startsWith(`${from}/`) || path.startsWith(`${from}?`) || path === from) {

@@ -390,6 +390,8 @@ class Shell:
                 split=split,
                 crowded=crowded,
                 top=top,
+                # the groups holding a link, whose heading stays whatever their panels draw
+                linked={item.group for item in links},
                 # on a narrow screen, every panel in the strip above the bar
                 strip=top + [item for kind, item, _ in entries if kind == "panel"],
                 active=max(
