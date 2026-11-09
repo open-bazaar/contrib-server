@@ -38,3 +38,12 @@ def day_text(at_ms: int, tz: tzinfo | None) -> str:
 def time_text(at_ms: int, tz: tzinfo | None) -> str:
     """The time of day of a moment, whatever the day."""
     return datetime.fromtimestamp(at_ms / 1000, tz).strftime("%H:%M:%S")
+
+
+def calendar(at_ms: int, tz: tzinfo | None) -> tuple[datetime, int, bool]:
+    """A moment on the viewer's calendar: when it is, how many days it is from
+    today, before it negative and after it positive, and whether it falls in
+    this year."""
+    moment = datetime.fromtimestamp(at_ms / 1000, tz)
+    today = datetime.now(tz).date()
+    return moment, (moment.date() - today).days, moment.year == today.year

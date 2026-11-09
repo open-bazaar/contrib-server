@@ -1,13 +1,14 @@
 """A module's pages on the server's base template: the Jinja environment its
-templates extend, the filters and globals 0.2's pages had, and the answer an
-htmx request from a page of another build gets."""
+templates extend, the filters and globals 0.2's pages had, the ways the
+pages write times, durations and token counts, and the answer an htmx
+request from a page of another build gets."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 lazy import asyncio
 lazy from collections.abc import Sequence
-lazy from datetime import tzinfo
+lazy from datetime import datetime, tzinfo
 lazy from hashlib import blake2b
 lazy from importlib.resources import files
 
@@ -31,7 +32,7 @@ lazy from starlette.responses import HTMLResponse, Response
 lazy from starlette.routing import BaseRoute
 lazy from starlette.types import ASGIApp, Receive, Scope, Send
 
-lazy from .clock import clock_text, day_text, now_ms, time_text, zone
+lazy from .clock import calendar, clock_text, day_text, now_ms, time_text, zone
 lazy from .i18n import LANGUAGES, Translator
 lazy from .markdown import render
 
@@ -78,6 +79,12 @@ class Pages:
             "day": _day,
             "time": _time,
             "markdown": _markdown,
+            "stamp": _stamp,
+            "dated": _dated,
+            "moment": _moment,
+            "duration": _duration,
+            "since": _since,
+            "tokens": _tokens,
         }
         self.environment.globals |= {
             "asset": self.asset,
@@ -193,20 +200,136 @@ def _markdown(context: Context, text: str) -> Markup:
     )
 
 
-@pass_context
-def _ago(context: Context, at_ms: int) -> str:
-    """How long ago, in the words of the page's translator."""
-    translator: Translator = context["t"]
+def _distance(translator: Translator, at_ms: int, suffix: str) -> str:
+    """How long since then in its largest unit, in the words of the page's
+    translator whose keys end with the suffix."""
     seconds = max(0, (now_ms() - at_ms) // 1000)
     if seconds < 10:
         return translator.text("server.time.just_now")
     if seconds < 60:
-        return translator.text("server.time.seconds_ago", {"n": seconds})
-    if seconds < 3600:
-        return translator.text("server.time.minutes_ago", {"n": seconds // 60})
-    if seconds < 86400:
-        return translator.text("server.time.hours_ago", {"n": seconds // 3600})
-    return translator.text("server.time.days_ago", {"n": seconds // 86400})
+        unit, n = "seconds", seconds
+    elif seconds < 3600:
+        unit, n = "minutes", seconds // 60
+    elif seconds < 86400:
+        unit, n = "hours", seconds // 3600
+    else:
+        unit, n = "days", seconds // 86400
+    return translator.text(f"server.time.{unit}{suffix}", {"n": n})
+
+
+@pass_context
+def _ago(context: Context, at_ms: int) -> str:
+    """How long ago, as 2 分钟前."""
+    return _distance(context["t"], at_ms, "_ago")
+
+
+@pass_context
+def _since(context: Context, at_ms: int) -> str:
+    """How long since then, without the ago: 刚刚, 2 分钟, 2 小时."""
+    return _distance(context["t"], at_ms, "")
+
+
+# the words for the days around today, by how far they are from it
+_NEAR = {-1: "server.yesterday", 0: "server.today", 1: "server.tomorrow"}
+
+
+def _date(translator: Translator, moment: datetime, this_year: bool) -> str:
+    """A day by its date, with its year when that is not this one."""
+    return translator.text(
+        "server.date" if this_year else "server.date.year",
+        {"year": moment.year, "month": moment.month, "day": moment.day},
+    )
+
+
+@pass_context
+def _stamp(context: Context, at_ms: int) -> str:
+    """When something in a list happened: its time today, yesterday by
+    name, any other day by its date."""
+    translator: Translator = context["t"]
+    moment, days, this_year = calendar(at_ms, context["tz"])
+    if days == 0:
+        return moment.strftime("%H:%M")
+    if days == -1:
+        return translator.text("server.yesterday")
+    return _date(translator, moment, this_year)
+
+
+@pass_context
+def _dated(context: Context, at_ms: int) -> str:
+    """The heading of a day's part of a list: today and yesterday named
+    before their date, any other day by its date alone."""
+    translator: Translator = context["t"]
+    moment, days, this_year = calendar(at_ms, context["tz"])
+    date = _date(translator, moment, this_year)
+    if days not in (-1, 0):
+        return date
+    return translator.text(
+        "server.dated", {"word": translator.text(_NEAR[days]), "date": date}
+    )
+
+
+@pass_context
+def _moment(context: Context, at_ms: int) -> str:
+    """A moment by its day and time: today and tomorrow by name with the
+    time, any other day by its date alone."""
+    translator: Translator = context["t"]
+    moment, days, this_year = calendar(at_ms, context["tz"])
+    if days not in (0, 1):
+        return _date(translator, moment, this_year)
+    return translator.text(
+        "server.moment",
+        {"word": translator.text(_NEAR[days]), "time": moment.strftime("%H:%M")},
+    )
+
+
+@pass_context
+def _duration(
+    context: Context, ms: int, form: Literal["text", "compact", "timer"] = "text"
+) -> str:
+    """How long something lasted: in words as 1 分 48 秒, compact as 3m10s,
+    or as a timer reads, 03:12; under ten seconds, to a tenth of one."""
+    hours, rest = divmod(ms // 1000, 3600)
+    minutes, seconds = divmod(rest, 60)
+    if form == "timer":
+        return (
+            f"{hours}:{minutes:02}:{seconds:02}"
+            if hours
+            else f"{minutes:02}:{seconds:02}"
+        )
+    if ms < 10_000:
+        tenths = f"{ms / 1000:.1f}".removesuffix(".0")
+        compact, key, values = f"{tenths}s", "seconds", {"n": tenths}
+    elif hours:
+        compact, key, values = (
+            f"{hours}h{minutes:02}m",
+            "hours",
+            {"h": hours, "m": minutes},
+        )
+    elif minutes:
+        compact, key, values = (
+            f"{minutes}m{seconds:02}s",
+            "minutes",
+            {"m": minutes, "s": seconds},
+        )
+    else:
+        compact, key, values = f"{seconds}s", "seconds", {"n": seconds}
+    if form == "compact":
+        return compact
+    translator: Translator = context["t"]
+    return translator.text(f"server.duration.{key}", values)
+
+
+def _tokens(count: int) -> str:
+    """A count of tokens: as it is under a hundred, in thousands to a tenth
+    under a hundred thousand, in whole thousands under a million, and in
+    millions to a hundredth from there."""
+    if count < 100:
+        return str(count)
+    if count < 100_000:
+        return f"{count / 1000:.1f}".removesuffix(".0") + "k"
+    if (thousands := round(count / 1000)) < 1000:
+        return f"{thousands}k"
+    return f"{count / 1_000_000:.2f}M"
 
 
 @pass_context
