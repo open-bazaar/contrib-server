@@ -1,11 +1,15 @@
-{% import "server/icons.html" as icons %}{% import "server/avatar.html" as people %}{% macro draw(entry) -%}
-{% set kind, item, head = entry %}
+{% import "server/icons.html" as icons %}{% import "server/avatar.html" as people %}{% macro draw(entries) -%}
+{# each group's entries together under its heading, where the group opens; a group of panels alone drops its heading while none of them draws anything #}
+{% for kind, item, head in entries %}
+{% if loop.first or item.group != loop.previtem[1].group %}<div class="nav-set"{% if item.group not in linked %} data-panels{% endif %}>{% endif %}
 {% if head %}<div class="nav-group">{{ t.text(head) }}</div>{% endif %}
 {% if kind == "link" %}
 <a class="nav{% if item.path == active %} on{% endif %}" href="{{ item.path }}"{% if item.path == active %} aria-current="page"{% endif %}><span class="i">{{ item.icon | safe }}</span><span>{{ t.text(item.text) }}</span>{% if item.badge %}<span class="tally" data-topic="{{ item.badge }}" data-tally hidden></span>{% endif %}</a>
 {% else %}
 <iframe class="panel" src="{{ item.src }}" data-fit title="{{ item.key }}"></iframe>
 {% endif %}
+{% if loop.last or item.group != loop.nextitem[1].group %}</div>{% endif %}
+{% endfor %}
 {%- endmacro %}<!DOCTYPE html>
 <html lang="{{ t.language }}" data-theme="{{ theme }}" data-theme-light="{{ system.light }}" data-theme-dark="{{ system.dark }}">
 <head>
@@ -23,9 +27,7 @@
   <aside class="side">
     <a class="brand" href="/">{% include "server/mark.svg" %}<span class="word">Bazaar</span></a>
     {% for panel in top %}<iframe class="panel" src="{{ panel.src }}" data-fit title="{{ panel.key }}"></iframe>{% endfor %}
-    {% for entry in entries[:split] %}
-    {{ draw(entry) }}
-    {% endfor %}
+    {{ draw(entries[:split]) }}
     {% set settings = src.startswith("/ui/settings/") %}
     {% set settings_link %}<a class="nav foot{% if settings %} on{% endif %}" href="/settings"{% if settings %} aria-current="page"{% endif %}>{{ icons.icon("settings") }}<span>{{ t.text("server.settings") }}</span></a>{% endset %}
     {% if crowded %}
@@ -35,9 +37,7 @@
     {% set behind = settings or (entries[split:] | map(attribute=1) | selectattr("path", "defined") | selectattr("path", "equalto", active) | list) %}
     <label class="nav more{% if behind %} on{% endif %}" for="more-places">{{ icons.icon("ellipsis") }}<span>{{ t.text("server.more") }}</span></label>
     <div class="overflow">
-      {% for entry in entries[split:] %}
-      {{ draw(entry) }}
-      {% endfor %}
+      {{ draw(entries[split:]) }}
       {{ settings_link }}
     </div>
     {% else %}
