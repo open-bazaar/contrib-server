@@ -109,14 +109,21 @@ class Pages:
             return f"/static/server/{name}?v={self._shell.build}"
         return f"/static/{module or self._module}/{name}?v={self.build}"
 
+    async def zone(self, request: Request) -> tzinfo | None:
+        """The viewer's zone, as the page says it or its browser left it;
+        nothing when neither does, so each moment is read on the server's own
+        clock."""
+        # a zone is read from disk the first time it is named
+        return await asyncio.to_thread(
+            zone, request.headers.get("X-Timezone") or request.cookies.get("bcs_tz")
+        )
+
     async def render(
         self, request: Request, template: str, *, status_code: int = 200, **values: Any
     ) -> HTMLResponse:
         """The template for whoever asked: not for any cache to keep, and a
         different body for htmx than for a browser loading it whole."""
         account = getattr(request.state, "account", None)
-        # the zone the page asks in, or the one its browser left in a cookie
-        named = request.headers.get("X-Timezone") or request.cookies.get("bcs_tz")
         system = (
             self._shell.themes.system(None, None)
             if account is None
@@ -135,10 +142,11 @@ class Pages:
             "server_build": self._shell.build,
             "request": request,
         }
-        # a zone is read from disk the first time it is named
+        tz = await self.zone(request)
+        # a template is read from disk the first time it is asked for
         body = await asyncio.to_thread(
             lambda: self.environment.get_template(template).render(
-                **viewer, tz=zone(named), **values
+                **viewer, tz=tz, **values
             )
         )
         return HTMLResponse(
