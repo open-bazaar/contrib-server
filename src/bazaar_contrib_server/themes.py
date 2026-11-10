@@ -36,6 +36,11 @@ class ThemeRegistry:
             (theme.tokens.bg for theme in self.themes if theme.name == name), ""
         )
 
+    def scheme(self, name: str) -> str:
+        """Whether a theme is light or dark, for the browser to draw a page
+        that way before its stylesheet arrives."""
+        return next((theme.scheme for theme in self.themes if theme.name == name), "")
+
     def system(self, day: str | None, night: str | None) -> dict[str, str]:
         """The themes worn by day and by night: the ones chosen while they are
         registered, else the morning and the night market, else the first

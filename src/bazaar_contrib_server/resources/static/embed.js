@@ -75,13 +75,23 @@
     new MutationObserver(report).observe(document.head, { subtree: true, childList: true, characterData: true });
   });
 
-  // A frame marked data-fit is as tall as its page, and marked data-empty
-  // while its page draws nothing; one marked with an address carries this
-  // page's address and title along with its own.
+  // A frame is marked data-drawn once its page reports in, shown from then
+  // on rather than the blank it starts as, or once its page has loaded when
+  // that page does without these tools; marked data-fit it is as tall as its
+  // page, and marked data-empty while its page draws nothing; one marked with
+  // an address carries this page's address and title along with its own.
+  document.addEventListener(
+    "load",
+    (event) => {
+      if (event.target instanceof HTMLIFrameElement) event.target.toggleAttribute("data-drawn", true);
+    },
+    true,
+  );
   addEventListener("message", (event) => {
     if (event.origin !== location.origin || !event.data?.bazaar) return;
     const frame = [...document.querySelectorAll("iframe")].find((f) => f.contentWindow === event.source);
     if (!frame) return;
+    frame.toggleAttribute("data-drawn", true);
     const { path, title, height } = event.data.bazaar;
     if (frame.hasAttribute("data-fit")) {
       frame.style.height = `${height}px`;
