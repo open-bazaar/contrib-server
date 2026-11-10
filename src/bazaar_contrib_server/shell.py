@@ -502,7 +502,7 @@ class Shell:
             groups=groups,
             part=part,
             view="part",
-            src=part.src.rstrip("/") + (f"/{rest}" if rest else "") + query,
+            src=(f"{part.src.rstrip('/')}/{rest}" if rest else part.src) + query,
         )
 
 
