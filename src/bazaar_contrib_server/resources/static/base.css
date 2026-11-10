@@ -18,6 +18,9 @@
 }
 
 * { box-sizing: border-box; }
+/* a frame stays unseen until its page reports in: never the blank, white
+   in some browsers, it starts as */
+iframe:not([data-drawn]) { visibility: hidden; }
 body {
   margin: 0;
   color: var(--text);

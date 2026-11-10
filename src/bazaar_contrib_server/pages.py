@@ -137,6 +137,7 @@ class Pages:
             "theme": system[mode] if mode is not None else "",
             "system": system,
             "theme_bg": self._shell.themes.bg,
+            "theme_scheme": self._shell.themes.scheme,
             "stylesheet": self._shell.stylesheet,
             "build": self.build,
             "server_build": self._shell.build,

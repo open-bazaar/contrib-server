@@ -1,9 +1,14 @@
 <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg', 'server') }}">
 <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png', 'server') }}">
 <link rel="manifest" href="{{ asset('manifest.webmanifest', 'server') }}">
+{# the scheme drawn before the stylesheet arrives: a framed page drawn in
+   another scheme than its frame gets a white canvas until then #}
 {% if theme -%}
+<meta name="color-scheme" content="{{ theme_scheme(theme) }}">
 <meta name="theme-color" content="{{ theme_bg(theme) }}">
 {%- else -%}
+{% set light, dark = theme_scheme(system.light), theme_scheme(system.dark) -%}
+<meta name="color-scheme" content="{{ light if light == dark else 'light dark' }}">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="{{ theme_bg(system.light) }}">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="{{ theme_bg(system.dark) }}">
 {%- endif %}
