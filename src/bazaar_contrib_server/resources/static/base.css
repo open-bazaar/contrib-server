@@ -18,6 +18,13 @@
 }
 
 * { box-sizing: border-box; }
+/* scrollbars in the theme's colours: a thin rounded thumb on no track, darker
+   under the pointer */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 6px; background: var(--faint) padding-box; }
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { border-width: 2px; background-color: var(--muted); }
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--faint) transparent; } }
 /* a frame stays unseen until its page reports in: never the blank, white
    in some browsers, it starts as */
 iframe:not([data-drawn]) { visibility: hidden; }
