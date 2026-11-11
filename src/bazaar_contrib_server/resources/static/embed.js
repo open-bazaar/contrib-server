@@ -29,6 +29,27 @@
   layout();
   wide.addEventListener("change", layout);
 
+  // Opened from the home screen the server is an app, and an app does not
+  // zoom: the viewport says so where the browser heeds it, and a pinch or a
+  // double tap is let go of here where it does not, in every frame it lands
+  // in. In a browser's tab the page zooms as pages do.
+  const outer = shell ? window.top : window;
+  if (outer.matchMedia("(display-mode: standalone)").matches || outer.navigator.standalone) {
+    root.toggleAttribute("data-app", true);
+    document.querySelector("meta[name=viewport]")?.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+    );
+    document.addEventListener("gesturestart", (event) => event.preventDefault());
+    document.addEventListener(
+      "touchmove",
+      (event) => {
+        if (event.touches.length > 1) event.preventDefault();
+      },
+      { passive: false },
+    );
+  }
+
   // An account that chose no theme follows the system, light or dark.
   const chosen = root.dataset.theme;
   const dark = matchMedia("(prefers-color-scheme: dark)");
@@ -232,7 +253,6 @@
   // one bus of the outermost window, which asks the server about all of it in
   // one request a round, at most every second, and tells each follower what
   // changed or that it may no longer see it.
-  const outer = shell ? window.top : window;
   if (outer === window && !window.bazaarBus) {
     const records = new Set();
     let timer = null;

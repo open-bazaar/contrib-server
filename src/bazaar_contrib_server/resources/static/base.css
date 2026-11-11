@@ -25,6 +25,8 @@
 ::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 6px; background: var(--faint) padding-box; }
 ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { border-width: 2px; background-color: var(--muted); }
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--faint) transparent; } }
+/* an app from the home screen takes no double tap to zoom */
+:root[data-app] { touch-action: manipulation; }
 /* a frame stays unseen until its page reports in: never the blank, white
    in some browsers, it starts as */
 iframe:not([data-drawn]) { visibility: hidden; }
