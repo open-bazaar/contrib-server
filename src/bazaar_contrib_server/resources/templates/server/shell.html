@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="{{ stylesheet }}">
 <link rel="stylesheet" href="{{ asset('shell.css', 'server') }}">
 <script src="{{ asset('embed.js', 'server') }}"></script>
+<script src="{{ asset('controls.js', 'server') }}"></script>
 <script src="{{ asset('htmx.min.js', 'server') }}"></script>
 </head>
 <body data-build="{{ server_build }}">
@@ -53,8 +54,8 @@
         <input type="hidden" name="language" value="{{ account.language or '' }}">
         <input type="hidden" name="day_theme" value="{{ account.day_theme or '' }}">
         <input type="hidden" name="night_theme" value="{{ account.night_theme or '' }}">
-        <button type="submit" name="theme" value="dark" title="{{ t.text('server.appearance.mode.dark') }}" aria-label="{{ t.text('server.appearance.mode.dark') }}">{{ icons.icon("moon") }}</button>
-        <button type="submit" name="theme" value="light" title="{{ t.text('server.appearance.mode.light') }}" aria-label="{{ t.text('server.appearance.mode.light') }}">{{ icons.icon("sun") }}</button>
+        <button type="submit" name="theme" value="dark" data-tip="{{ t.text('server.appearance.mode.dark') }}" aria-label="{{ t.text('server.appearance.mode.dark') }}">{{ icons.icon("moon") }}</button>
+        <button type="submit" name="theme" value="light" data-tip="{{ t.text('server.appearance.mode.light') }}" aria-label="{{ t.text('server.appearance.mode.light') }}">{{ icons.icon("sun") }}</button>
       </form>
     </div>
   </aside>

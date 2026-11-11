@@ -156,6 +156,56 @@ kbd.k { font: 500 10.5px var(--font-mono); color: inherit; opacity: .6; border: 
 .input.select select { appearance: none; flex: 1; height: 100%; padding: 0 36px 0 12px; border: 0; background: none; color: inherit; font: inherit; outline: none; }
 .input.select .i { position: absolute; right: 12px; color: var(--muted); pointer-events: none; }
 .input.select:has(select:focus-visible) { border-color: var(--saffron); box-shadow: 0 0 0 4px var(--saffron-soft); }
+/* what the browser would draw for a control, drawn in the theme: a select
+   opens the list controls.js draws, never its own; the box of an open one
+   looks focused and its chevron turns */
+.chooses :has(> select) { cursor: pointer; }
+.chooses select { pointer-events: none; }
+.input.select:has(> select[aria-expanded="true"]) { border-color: var(--saffron); box-shadow: 0 0 0 4px var(--saffron-soft); }
+:has(> select[aria-expanded="true"]):not(.input) { background: var(--surface-2); color: var(--text); }
+:has(> select[aria-expanded="true"]) > :last-child:not(select) { transform: rotate(180deg); }
+.choices { position: fixed; z-index: 100; overflow: auto; padding: 6px; border-radius: var(--r-md); background: var(--raised); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.choice { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13.5px; line-height: 20px; color: var(--text-2); white-space: nowrap; cursor: pointer; }
+.choice.active { background: var(--surface-2); color: var(--text); }
+.choice[aria-selected="true"] { color: var(--text); font-weight: 600; }
+.choice[aria-disabled="true"] { color: var(--faint); cursor: default; }
+.choice .tick { margin-left: auto; display: grid; color: var(--saffron); }
+.choice .tick svg { width: 16px; height: 16px; }
+.choosing .scrim { position: fixed; inset: 0; z-index: 100; background: rgba(5, 7, 10, .55); }
+:root[data-theme="day"] .choosing .scrim { background: rgba(60, 45, 20, .28); }
+.choosing .tray { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; max-height: 80%; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px max(30px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -20px 50px -10px rgba(0, 0, 0, .45); }
+.choosing .grab { flex: none; align-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--line-strong); }
+.choosing .tray b { margin: 4px 6px 6px; font-family: var(--font-display); font-size: 19px; line-height: 27px; }
+.choosing .tray .choices { position: static; min-height: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.choosing .tray .choice { flex: none; min-height: 48px; padding: 0 12px; border-radius: 12px; font-size: 15px; line-height: 22px; white-space: normal; }
+.choosing .tray .choice[aria-selected="true"] { background: var(--surface-2); }
+.choosing .tray .choice .tick svg { width: 18px; height: 18px; }
+/* a field typed in rings in the theme's colour, never the browser's */
+.input input { outline: none; }
+input.input:focus-visible, .input:has(> input:focus-visible) { outline: none; border-color: var(--saffron); box-shadow: 0 0 0 4px var(--saffron-soft); }
+/* a field left wrong, over any focus ring, and what is wrong under it */
+:root .input[aria-invalid="true"], :root .input:has(> [aria-invalid="true"]) { border-color: var(--crimson); box-shadow: 0 0 0 4px var(--crimson-soft); }
+.problem { display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 18px; font-weight: 400; color: var(--crimson); }
+.problem .mark { display: grid; }
+.problem svg { width: 14px; height: 14px; }
+/* checkboxes as the theme draws them; numbers without steppers, searches
+   without the browser's clear button, passwords without its eye, filled
+   fields in the theme's colours, and text areas as tall as their text */
+:where(input[type="checkbox"]) { appearance: none; flex: none; width: 18px; height: 18px; margin: 0; display: inline-grid; place-items: center; border-radius: 5px; border: 1.5px solid var(--line-strong); background: var(--surface); cursor: pointer; }
+:where(input[type="checkbox"]:checked) { background: var(--saffron); border-color: var(--saffron); }
+:where(input[type="checkbox"]:checked)::after { content: ""; width: 9px; height: 5px; margin-top: -2px; border: solid var(--saffron-ink); border-width: 0 0 2.5px 2.5px; transform: rotate(-45deg); }
+:where(input[type="checkbox"]:focus-visible) { outline: none; box-shadow: 0 0 0 4px var(--saffron-soft); }
+input[type="number"] { appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+input::-ms-reveal, input::-ms-clear { display: none; }
+input:-webkit-autofill { transition: background-color 0s 600000s, color 0s 600000s; }
+textarea { field-sizing: content; resize: none; }
+/* a hint for what is pointed at, drawn by controls.js from its data-tip */
+.tooltip { position: fixed; z-index: 100; max-width: 320px; padding: 3px 10px; border-radius: var(--r-xs); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; box-shadow: var(--shadow); pointer-events: none; }
+.tooltip::before { content: ""; position: absolute; left: var(--x); width: 6px; height: 6px; background: var(--surface); border: solid var(--line-strong); transform: translateX(-50%) rotate(45deg); }
+.tooltip.under::before { top: -4px; border-width: 1px 0 0 1px; }
+.tooltip.over::before { bottom: -4px; border-width: 0 1px 1px 0; }
 fieldset.field { margin: 0; padding: 0; border: 0; min-width: 0; }
 fieldset.field legend { padding: 0; margin-bottom: 7px; font-size: 13px; font-weight: 600; }
 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line-soft); gap: 3px; }
