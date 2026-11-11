@@ -152,12 +152,16 @@
     light(items[select.selectedIndex] ?? items.find((item) => !item.option.disabled));
   };
 
+  // what pressed last: a select a finger or a pen opened is not focused,
+  // since a phone opens its own list for a focused select
+  let pressed = "mouse";
+  document.addEventListener("pointerdown", (event) => (pressed = event.pointerType), true);
   document.addEventListener("click", (event) => {
     const select = event.target.closest?.(":has(> select)")?.querySelector(":scope > select");
     if (!select || select.disabled) return;
     event.preventDefault();
     if (open?.select === select) return close();
-    select.focus({ preventScroll: true });
+    if (pressed === "mouse") select.focus({ preventScroll: true });
     choose(select);
   });
   let typed = "";
