@@ -102,8 +102,66 @@
     if (path.startsWith(`${from}/`) || path.startsWith(`${from}?`) || path === from) {
       const address = (frame.dataset.addressTo + path.slice(from.length)).replace(/\/(?=\?|$)/, "") || "/";
       if (address !== location.pathname + location.search) history.replaceState(history.state, "", address);
+      light(address);
     }
     if (title && document.title !== title) document.title = title;
+  });
+
+  // The shell stays as it is and opens a place in its frame, for its own
+  // links and for those its pages give the whole window; the place shown is
+  // lit, as the server lights it, however the frame got there.
+  const light = (address) => {
+    const here = address.split("?")[0].replace(/\/?$/, "/");
+    const links = [...document.querySelectorAll("a.nav[href]")];
+    const lit = links
+      .filter((link) => here.startsWith(link.getAttribute("href").replace(/\/?$/, "/")))
+      .sort((a, b) => b.getAttribute("href").length - a.getAttribute("href").length)[0];
+    for (const link of links) {
+      link.classList.toggle("on", link === lit);
+      if (link === lit) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
+    document.querySelector(".nav.more")?.classList.toggle("on", Boolean(lit?.closest(".overflow")));
+  };
+  const place = () => document.querySelector("iframe.frame[data-address-from]");
+  window.bazaarOpen = (url) => {
+    const frame = place();
+    const [, module, ...rest] = url.pathname.split("/");
+    frame.contentWindow.location.assign(`${frame.dataset.addressFrom}/${module}/${rest.join("/")}${url.search}`);
+    light(url.pathname + url.search);
+    const more = document.getElementById("more-places");
+    if (more) more.checked = false;
+  };
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest?.(place() ? "a.nav[href]" : "a[target=_top][href], a[target=_parent][href]");
+    const open = shell ? window.top.bazaarOpen : place() && window.bazaarOpen;
+    if (!link || !open || link.origin !== location.origin) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    // the page around this one changes in place, as its own links change it;
+    // around one right in the shell's frame, the frame is that page's place
+    if (link.target !== "_parent") open(new URL(link.href));
+    else if (window.parent === window.top) location.assign(link.href);
+    else window.parent.htmx.ajax("GET", link.href, { target: "body", swap: "innerMorph show:top", push: "true" });
+  });
+
+  // What a page changes in place stays within its own module, whose build
+  // drew it: a link or form leading elsewhere goes as the browser takes it.
+  document.addEventListener("htmx:before:init", (event) => {
+    const element = event.target;
+    if (!element.matches?.("a[href], form") || element.matches("[hx-get], [hx-post], [hx-put], [hx-patch], [hx-delete]")) return;
+    const module = location.pathname.match(/^\/ui\/[^/]+\//)?.[0];
+    const address = new URL(element.getAttribute(element.matches("a") ? "href" : "action") ?? "", location.href);
+    if (!module || address.origin !== location.origin || !address.pathname.startsWith(module)) event.preventDefault();
+  });
+
+  // A frame keeps what it learned of its page as the page around it changes
+  // in place: whether it is shown, empty, and how tall.
+  addEventListener("DOMContentLoaded", () => {
+    window.htmx?.registerExtension("frames", {
+      htmx_before_morph_attr: (element, detail) =>
+        !(element instanceof HTMLIFrameElement && ["data-drawn", "data-empty", "style"].includes(detail.attrName)),
+    });
   });
 
   // The update bus, as 0.2's /poll: every page hands what it follows to the

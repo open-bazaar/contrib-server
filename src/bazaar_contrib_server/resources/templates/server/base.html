@@ -16,8 +16,11 @@
 </head>
 {# every request says the viewer's zone, and which build drew the page: one
    left open across an upgrade is asked to refresh rather than patched with
-   pieces of the new build; the update bus goes by the server's own build #}
-<body data-build="{{ server_build }}" hx-headers:inherited='js:{"X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone, "X-Build": "{{ build }}"}'>
+   pieces of the new build; the update bus goes by the server's own build.
+   Its links and forms change the page in place, only what differs, the
+   address following; a page of the whole window, like the login page,
+   goes as browsers go #}
+<body data-build="{{ server_build }}" hx-headers:inherited='js:{"X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone, "X-Build": "{{ build }}"}'{% if "data-top" not in self.root() %} hx-boost:inherited='swap:"innerMorph show:top"'{% endif %}>
 {# the page's own top bar: a way back on a narrow screen, its title, crumbs on a wide one, and its actions #}
 {# the address back is a block of its own, read by the top bar and drawn nowhere else #}
 {% if false %}{% block back %}{% endblock %}{% endif %}
