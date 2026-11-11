@@ -145,6 +145,19 @@
     else window.parent.htmx.ajax("GET", link.href, { target: "body", swap: "innerMorph show:top", push: "true" });
   });
 
+  // A page changing in place leaves behind what it asked for before: an
+  // answer meant for the page it was is not put into the page it became. It
+  // has become another once the new one is put in, not when it is asked for.
+  let changes = 0;
+  document.addEventListener("htmx:before:request", (event) => {
+    event.detail.ctx.change = changes;
+  });
+  document.addEventListener("htmx:before:swap", (event) => {
+    const ctx = event.detail.ctx;
+    if (ctx.target === document.body) changes += 1;
+    else if (ctx.change !== changes) event.preventDefault();
+  });
+
   // What a page changes in place stays within its own module, whose build
   // drew it: a link or form leading elsewhere goes as the browser takes it.
   document.addEventListener("htmx:before:init", (event) => {
