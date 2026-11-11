@@ -203,6 +203,11 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 input::-ms-reveal, input::-ms-clear { display: none; }
 input:-webkit-autofill { transition: background-color 0s 600000s, color 0s 600000s; }
 textarea { field-sizing: content; resize: none; }
+/* what is on its way to a list or a conversation as it is scrolled to: a
+   turning ring and what it is */
+.paging { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 0; font-size: 12.5px; line-height: 18px; color: var(--muted); }
+.spin { width: 12px; height: 12px; flex: none; border-radius: 50%; border: 2px solid var(--saffron-soft); border-top-color: var(--saffron); animation: turn 1s linear infinite; }
+@keyframes turn { to { transform: rotate(360deg); } }
 /* a hint for what is pointed at, drawn by controls.js from its data-tip */
 .tooltip { position: fixed; z-index: 100; max-width: 320px; padding: 3px 10px; border-radius: var(--r-xs); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; box-shadow: var(--shadow); pointer-events: none; }
 .tooltip::before { content: ""; position: absolute; left: var(--x); width: 6px; height: 6px; background: var(--surface); border: solid var(--line-strong); transform: translateX(-50%) rotate(45deg); }
