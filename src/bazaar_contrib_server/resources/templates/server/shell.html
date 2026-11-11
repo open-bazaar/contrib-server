@@ -25,6 +25,7 @@
 <body data-build="{{ server_build }}">
 <div class="app">
   <aside class="side">
+    <div class="loading" aria-hidden="true"><i></i></div>
     <a class="brand" href="/">{% include "server/mark.svg" %}<span class="word">Bazaar</span></a>
     {% for panel in top %}<iframe class="panel" src="{{ panel.src }}" data-fit title="{{ panel.key }}"></iframe>{% endfor %}
     {{ draw(entries[:split]) }}
