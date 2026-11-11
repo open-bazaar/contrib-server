@@ -68,7 +68,7 @@ wheels = [
 
 [[package]]
 name = "bazaar-contrib-server"
-version = "0.3.0rc11"
+version = "0.3.0rc12"
 source = { editable = "." }
 dependencies = [
     { name = "bazaar-contrib-http" },
