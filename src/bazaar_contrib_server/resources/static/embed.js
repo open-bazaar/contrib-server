@@ -124,9 +124,46 @@
     document.querySelector(".nav.more")?.classList.toggle("on", Boolean(lit?.closest(".overflow")));
   };
   const place = () => document.querySelector("iframe.frame[data-address-from]");
+  // the shell's line for what is on its way: shown once a load takes a
+  // moment, run out once the last one is there
+  let loads = 0;
+  let timers = [];
+  const later = (wait, then) => timers.push(setTimeout(then, wait));
+  const finish = (line) => {
+    timers.forEach(clearTimeout);
+    timers = [];
+    if (!line.classList.contains("on")) return;
+    line.classList.add("done");
+    later(200, () => line.classList.remove("on"));
+    later(500, () => line.classList.remove("done"));
+  };
+  window.bazaarLoading = (delta) => {
+    const line = document.querySelector(".loading");
+    if (!line) return;
+    loads = Math.max(0, loads + delta);
+    if (loads === 1 && delta > 0) {
+      timers.forEach(clearTimeout);
+      timers = [];
+      later(150, () => {
+        // from the start again, however far the last one had run
+        line.classList.remove("on", "done");
+        void line.offsetWidth;
+        line.classList.add("on");
+      });
+    } else if (loads === 0) finish(line);
+  };
+  // a page put in the frame ends what the page before had on its way, whether
+  // that page said so or not
+  addEventListener("DOMContentLoaded", () => {
+    place()?.addEventListener("load", () => {
+      loads = 0;
+      finish(document.querySelector(".loading"));
+    });
+  });
   window.bazaarOpen = (url) => {
     const frame = place();
     const [, module, ...rest] = url.pathname.split("/");
+    window.bazaarLoading(1);
     frame.contentWindow.location.assign(`${frame.dataset.addressFrom}/${module}/${rest.join("/")}${url.search}`);
     light(url.pathname + url.search);
     const more = document.getElementById("more-places");
@@ -151,6 +188,19 @@
   let changes = 0;
   document.addEventListener("htmx:before:request", (event) => {
     event.detail.ctx.change = changes;
+  });
+
+  // What a reader asks for shows on the shell's line while it is on its way;
+  // what the page refreshes by itself does not.
+  const loading = shell ? window.top.bazaarLoading : null;
+  document.addEventListener("htmx:before:request", (event) => {
+    const ctx = event.detail.ctx;
+    if (!loading || (ctx.sourceEvent instanceof Event && !ctx.sourceEvent.isTrusted)) return;
+    ctx.loading = true;
+    loading(1);
+  });
+  document.addEventListener("htmx:finally:request", (event) => {
+    if (event.detail.ctx.loading) loading(-1);
   });
   document.addEventListener("htmx:before:swap", (event) => {
     const ctx = event.detail.ctx;
