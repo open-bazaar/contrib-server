@@ -190,12 +190,13 @@
     event.detail.ctx.change = changes;
   });
 
-  // What a reader asks for shows on the shell's line while it is on its way;
-  // what the page refreshes by itself does not.
+  // What a reader asks for shows on the shell's line while it is on its way,
+  // a choice from a select's list included; what the page refreshes by
+  // itself does not.
   const loading = shell ? window.top.bazaarLoading : null;
   document.addEventListener("htmx:before:request", (event) => {
     const ctx = event.detail.ctx;
-    if (!loading || (ctx.sourceEvent instanceof Event && !ctx.sourceEvent.isTrusted)) return;
+    if (!loading || (ctx.sourceEvent instanceof Event && !ctx.sourceEvent.isTrusted && !ctx.sourceEvent.byReader)) return;
     ctx.loading = true;
     loading(1);
   });

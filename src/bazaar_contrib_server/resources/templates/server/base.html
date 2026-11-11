@@ -7,6 +7,7 @@
 {% include "server/head.html" %}
 <link rel="stylesheet" href="{{ stylesheet }}">
 <script src="{{ asset('embed.js', 'server') }}"></script>
+<script src="{{ asset('controls.js', 'server') }}"></script>
 <script src="{{ asset('htmx.min.js', 'server') }}"></script>
 <script src="{{ asset('hx-alpine-compat-4.0.0.js', 'server') }}"></script>
 <script defer src="{{ asset('alpine-focus-3.17.4.min.js', 'server') }}"></script>
@@ -38,5 +39,10 @@
   <p class="muted">{{ t.text("server.stale.text") }}</p>
   <button class="btn primary" type="button" data-refresh>{{ t.text("server.stale.refresh") }}</button>
 </dialog>
+{# what controls.js draws with: the tick of the option chosen, the mark of a field left wrong, and what it says of it #}
+<template data-controls data-required="{{ t.text('server.check.required') }}" data-choose="{{ t.text('server.check.choose') }}" data-number="{{ t.text('server.check.number') }}" data-whole="{{ t.text('server.check.whole') }}" data-under="{{ t.text('server.check.under', {'n': '{n}'}) }}">
+  <span class="tick">{% include "server/icons/check.svg" %}</span>
+  <span class="mark">{% include "server/icons/circle-alert.svg" %}</span>
+</template>
 </body>
 </html>
