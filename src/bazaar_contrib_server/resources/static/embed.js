@@ -305,6 +305,26 @@
     if (!event.persisted) leaving.forEach((stop) => stop());
   });
 
+  // Text copied for the reader, whether it was: the clipboard where the page
+  // is served securely, the selection copied the old way where it is not,
+  // over plain http to an address on the network.
+  window.bazaarCopy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position: fixed; top: 0; left: 0; opacity: 0";
+      document.body.append(area);
+      area.select();
+      const copied = document.execCommand("copy");
+      area.remove();
+      return copied;
+    }
+  };
+
   // A page that changed how the account's pages look has the whole window drawn again.
   document.addEventListener("dressed", () => window.top.location.reload());
 
