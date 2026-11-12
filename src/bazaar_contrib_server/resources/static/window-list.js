@@ -11,35 +11,30 @@
   class WindowList {
     constructor(element) {
       this.element = element;
+      element.windowList = this;
       this.items = [];
       this.ends = [];
       this.rows = new Map();
       this.index = new WeakMap();
+      this.outside = new Set();
+      this.start = this.end = 0;
       this.anchor = null;
+      this.pinned = false;
       this.width = element.clientWidth;
-      this.observer = new ResizeObserver((entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          if (entry.target === element) {
-            if (this.width !== element.clientWidth) {
-              this.width = element.clientWidth;
-              for (const item of this.items) item.height = 128;
-              changed = true;
-            }
-          } else if (this.index.has(entry.target)) {
-            const item = this.items[this.index.get(entry.target)];
-            const height = this.height(entry.target);
-            if (item.height !== height) { item.height = height; changed = true; }
-          }
+      this.observer = new ResizeObserver(() => {
+        if (this.width !== element.clientWidth) {
+          this.width = element.clientWidth;
+          for (const item of this.items) item.height = 128;
         }
-        if (changed) this.layout();
-        else this.render();
+        for (const [item, row] of this.rows) item.height = this.height(row);
+        this.layout();
       });
       this.top = document.createElement("div");
       this.bottom = document.createElement("div");
       for (const space of [this.top, this.bottom]) {
         space.setAttribute("aria-hidden", "true");
         space.className = "window-space";
+        space.style.flex = "none";
       }
       element.prepend(this.top);
       element.append(this.bottom);
@@ -70,25 +65,55 @@
     }
 
     origin() {
-      if (this.root === this.element) return parseFloat(getComputedStyle(this.element).paddingTop);
-      return this.element.getBoundingClientRect().top + this.element.clientTop
-        + parseFloat(getComputedStyle(this.element).paddingTop)
-        - this.viewportTop() + this.root.scrollTop;
+      return this.top.getBoundingClientRect().top - this.viewportTop() + this.root.scrollTop;
     }
 
     take() {
-      const fresh = [...this.element.children].filter((row) => row.matches(this.element.dataset.windowList) && !this.index.has(row));
-      for (const row of fresh) {
-        const index = this.items.length;
-        row.removeAttribute("data-window-index");
-        this.items.push({ html: row.outerHTML, height: this.height(row) });
-        row.dataset.windowIndex = index;
-        this.index.set(row, index);
-        this.rows.set(index, row);
-        this.observer.observe(row);
+      let items = [];
+      const mounted = [];
+      for (const [item, row] of this.rows) {
+        if (row.parentElement !== this.element) {
+          this.observer.unobserve(row);
+          this.rows.delete(item);
+        }
       }
-      // New pages arrive after the lower space and before their next-page link.
-      if (fresh.length) fresh.at(-1).after(this.bottom);
+      for (const row of this.outside) {
+        if (row.parentElement !== this.element) {
+          this.observer.unobserve(row);
+          this.outside.delete(row);
+        }
+      }
+      for (const row of this.element.children) {
+        if (row === this.top) items = items.concat(this.items.slice(0, this.start));
+        else if (row === this.bottom) items = items.concat(this.items.slice(this.end));
+        else if (row.matches(this.element.dataset.windowList)) {
+          let item = this.index.get(row);
+          if (!item) {
+            item = { html: row.outerHTML, height: this.height(row), data: { ...row.dataset } };
+            this.index.set(row, item);
+            this.rows.set(item, row);
+          }
+          items.push(item);
+          mounted.push(row);
+          this.observer.observe(row);
+        } else {
+          this.outside.add(row);
+          this.observer.observe(row);
+        }
+      }
+      this.items = items;
+      items.forEach((item, index) => {
+        item.position = index;
+        const row = this.rows.get(item);
+        if (row) row.dataset.windowIndex = index;
+      });
+      // A page may arrive above the upper space or below the lower one.
+      if (mounted.length) {
+        mounted[0].before(this.top);
+        mounted.at(-1).after(this.bottom);
+        this.start = this.index.get(mounted[0]).position;
+        this.end = this.index.get(mounted.at(-1)).position + 1;
+      }
       this.layout();
     }
 
@@ -96,13 +121,17 @@
       const root = this.viewport();
       let height = 0;
       this.ends = this.items.map((item) => height += item.height);
-      const scroll = this.anchor
-        ? this.origin() + (this.ends[this.anchor.index - 1] || 0) - this.anchor.offset
-        : root.scrollTop;
+      let scroll = root.scrollTop;
+      if (this.anchor === "end") scroll = this.origin() + height;
+      else if (this.anchor) {
+        const { item, offset } = this.anchor;
+        scroll = this.origin() + (this.ends[item.position - 1] || 0)
+          - (this.pinned ? (root.clientHeight - item.height) / 2 : offset);
+      }
       this.render(scroll);
-      root.scrollTop = scroll;
+      root.scrollTop = this.anchor === "end" ? root.scrollHeight : scroll;
       this.render();
-      this.remember();
+      if (!this.pinned) this.remember();
     }
 
     render(scroll = this.viewport().scrollTop) {
@@ -122,24 +151,26 @@
       const [start, edge] = bounds;
       const end = Math.min(this.items.length, edge + 1);
       Alpine.mutateDom(() => {
-        for (const [index, row] of this.rows) {
-          if (index < start || index >= end) {
+        for (const [item, row] of this.rows) {
+          if (item.position < start || item.position >= end) {
+            item.html = row.outerHTML;
             this.observer.unobserve(row);
             Alpine.destroyTree(row);
             insertContent({ target: row, swapSpec: { style: "delete" }, fragment: document.createDocumentFragment() });
-            this.rows.delete(index);
+            this.rows.delete(item);
           }
         }
         let next = this.top.nextElementSibling;
         for (let index = start; index < end; index++) {
-          if (this.rows.has(index)) { next = this.rows.get(index).nextElementSibling; continue; }
+          const item = this.items[index];
+          if (this.rows.has(item)) { next = this.rows.get(item).nextElementSibling; continue; }
           const fragment = document.createElement("template");
-          fragment.innerHTML = this.items[index].html;
+          fragment.innerHTML = item.html;
           const row = fragment.content.firstElementChild;
           row.dataset.windowIndex = index;
           this.element.insertBefore(row, next);
-          this.index.set(row, index);
-          this.rows.set(index, row);
+          this.index.set(row, item);
+          this.rows.set(item, row);
           Alpine.initTree(row);
           htmx.process(row);
           this.observer.observe(row);
@@ -147,13 +178,26 @@
         this.top.style.height = `${this.ends[start - 1] || 0}px`;
         this.bottom.style.height = `${(this.ends.at(-1) || 0) - (this.ends[end - 1] || 0)}px`;
       });
+      this.start = start;
+      this.end = end;
       this.element.dispatchEvent(new Event("bazaar:window", { bubbles: true }));
     }
 
     remember() {
+      if (this.element.hasAttribute("data-window-follow")
+        && Math.ceil(this.root.scrollTop + this.root.clientHeight) >= this.root.scrollHeight) {
+        this.anchor = "end";
+        return;
+      }
       const top = this.viewportTop();
       const row = [...this.element.children].find((row) => this.index.has(row) && row.getBoundingClientRect().bottom > top);
-      this.anchor = row ? { index: this.index.get(row), offset: row.getBoundingClientRect().top - top } : null;
+      this.anchor = row ? { item: this.index.get(row), offset: row.getBoundingClientRect().top - top } : null;
+    }
+
+    scrollTo(item, align = "center") {
+      this.pinned = align === "center";
+      this.anchor = align === "end" ? "end" : { item, offset: 0 };
+      this.layout();
     }
   }
 
@@ -170,10 +214,20 @@
     for (const list of lists.values()) {
       if (event.target === list.viewport() || event.target === document && list.root === document.scrollingElement) {
         list.render();
-        list.remember();
+        if (!list.pinned) list.remember();
       }
     }
   }, true);
+  for (const name of ["wheel", "touchmove", "keydown", "pointerdown"]) {
+    document.addEventListener(name, (event) => {
+      for (const list of lists.values()) {
+        if (list.pinned && list.viewport().contains(event.target)) {
+          list.pinned = false;
+          list.remember();
+        }
+      }
+    }, { capture: true, passive: true });
+  }
   document.addEventListener("htmx:before:swap", (event) => {
     for (const [element, list] of lists) {
       const replaced = event.detail.tasks.some(({ target, swapSpec }) => {
@@ -183,8 +237,9 @@
       });
       if (replaced) {
         list.observer.disconnect();
+        delete element.windowList;
         lists.delete(element);
-      }
+      } else if (!list.pinned) list.remember();
     }
   });
   document.addEventListener("htmx:after:swap", take);
